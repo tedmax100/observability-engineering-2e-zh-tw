@@ -41,6 +41,14 @@ def get_term_y0s(pn0):
 def esc(t):
     return t.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
+_QUOTED_TERM_RE = re.compile(r'「[^「」]{1,20}」')
+
+def protect_quoted(escaped_text):
+    """Keep short 「term」 spans in headings from being split across a line
+    break — CJK line-wrapping is break-anywhere, so a heading can wrap in
+    the middle of a quoted term (e.g. 「正式環境」) without this."""
+    return _QUOTED_TERM_RE.sub(lambda m: f'<span class="nowrap">{m.group()}</span>', escaped_text)
+
 def is_mono(font):
     return any(k in font for k in ("Mono", "Courier", "Consol"))
 
@@ -188,16 +196,16 @@ def classify_and_render(pn0, chapter_slug):
             html.append(("term", esc(text)))
             continue
         if size >= 18 and bold:
-            html.append(("h1", esc(text)))
+            html.append(("h1", protect_quoted(esc(text))))
             continue
         if 12 <= size < 18 and bold:
-            html.append(("h2", esc(text)))
+            html.append(("h2", protect_quoted(esc(text))))
             continue
         if mono:
             html.append(("code", text))  # raw, escaped+highlighted at render time
             continue
         if bold and size >= 9.5 and len(text) < 60 and not re.search(r'[。？！，、]$', text):
-            html.append(("h3", esc(text)))
+            html.append(("h3", protect_quoted(esc(text))))
             continue
         if size <= 8.5:
             html.append(("fn", esc(text)))
@@ -318,7 +326,7 @@ def render_chapter(n, start_pn, end_pn, title_cn, part_label=None, prev_link=Non
   <header class="masthead">
     <span class="eyebrow">Observability Engineering · Second Edition</span>
     {part_html}
-    <h1 class="title serif">第 {n} 章<br>{esc(title_cn)}</h1>
+    <h1 class="title serif">第 {n} 章<br>{protect_quoted(esc(title_cn))}</h1>
     <div class="rule"></div>
   </header>
 

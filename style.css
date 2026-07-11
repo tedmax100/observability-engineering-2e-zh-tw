@@ -116,6 +116,8 @@
     text-wrap: balance;
   }
 
+  .nowrap { white-space: nowrap; }
+
   h3.subsection {
     font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
     font-size: 0.95rem;
