@@ -31,18 +31,14 @@
   <span class="tok-string">"referral"</span>: <span class="tok-keyword">false</span>
 }</pre>
 <p>為了說明這些資料如何被儲存、以及這如何影響後續你能提出的問題，讓我們也想像一下該事件若寫成資料庫記錄會是什麼樣子，其中每個欄位對應到資料庫表格中的一個欄位。這裡我們會再加入第二筆類似的事件，它是在幾秒鐘後發生的：</p>
-<pre class="code">timestamp
-user_id
-user_action
-referral
-<span class="tok-number">6</span>:<span class="tok-number">00</span>:<span class="tok-number">00</span>
-<span class="tok-number">123</span>
-signup
-<span class="tok-keyword">false</span>
-<span class="tok-number">6</span>:<span class="tok-number">00</span>:<span class="tok-number">03</span>
-<span class="tok-number">456</span>
-checkout
-<span class="tok-keyword">true</span></pre>
+<figure class="plate">
+<div class="table-wrap">
+<table class="datatable">
+<thead><tr><th>timestamp</th><th>user_id</th><th>user_action</th><th>referral</th></tr></thead>
+<tbody><tr><td>6:00:00</td><td>123</td><td>signup</td><td>false</td></tr><tr><td>6:00:03</td><td>456</td><td>checkout</td><td>true</td></tr></tbody>
+</table>
+</div>
+</figure>
 <p>以這種方式看待事件已經足夠通用，讓我們能有效地為三大支柱資料型別（指標、日誌與追蹤）各自建立模型，以更深入理解它們的限制、內部運作方式，以及該如何重新思考它們。</p>
 <h2 class="section serif">指標的限制</h2>
 <p>為了理解指標的限制，首先我們必須釐清指標到底是什麼。讓我們先為「指標」這個詞消除歧義。可惜的是，這個詞有時被當成「遙測」的通用同義詞來使用（例如：「老闆，我們所有的指標都在往上衝！」）。在本書中，我們將「指標」理解為：用來代表系統狀態的純量值，通常儲存在時間序列資料庫中。</p>
@@ -75,24 +71,26 @@ checkout
 <figure class="plate"><img src="images/ch05_p103_x377.png" alt="" />
 <figcaption>圖 5‑2　與只會遞增的 counter 指標不同，gauge 可以任意增加或減少，用來擷取特定時間點的瞬時值。</figcaption></figure>
 <p>聚合存在一些固有的限制。舉一個無法運作的測量範例，假設你收到的資料是每分鐘、每個服務實例的平均 http.response 時間如下：</p>
-<p class="fn">時間戳記　伺服器　回應時間（毫秒）</p>
-<pre class="code"><span class="tok-number">6</span>:<span class="tok-number">00</span>:<span class="tok-number">00</span>
-web.<span class="tok-number">1</span>
-<span class="tok-number">120</span>
-<span class="tok-number">6</span>:<span class="tok-number">00</span>:<span class="tok-number">00</span>
-web.<span class="tok-number">2</span>
-<span class="tok-number">230</span>
-<span class="tok-number">6</span>:<span class="tok-number">00</span>:<span class="tok-number">00</span>
-web.<span class="tok-number">3</span>
-<span class="tok-number">200</span></pre>
+<figure class="plate">
+<div class="table-wrap">
+<table class="datatable">
+<thead><tr><th>Timestamp</th><th>Server</th><th>Response time (ms)</th></tr></thead>
+<tbody><tr><td>6:00:00</td><td>web.1</td><td>120</td></tr><tr><td>6:00:00</td><td>web.2</td><td>230</td></tr><tr><td>6:00:00</td><td>web.3</td><td>200</td></tr></tbody>
+</table>
+</div>
+</figure>
 <p>以這種形狀的資料，你能回答哪些問題呢？舉例來說，如果你問這個服務整體（跨所有實例）的平均回應時間是多少，你能得到正確的答案嗎？</p>
 <p>你可能會想直接把所有數值平均起來，說這個服務的平均回應時間是 183 毫秒。然而，這種過於簡化的做法有問題，因為每個聚合後的測量值可能包含不同數量的資料點。遺憾的是，一旦你透過取平均把資料聚合而遺失了原始資料，就沒有任何在數學上站得住腳的方式可以把這些測量值重新組合起來。</p>
 <p>平均值是可以再取平均的，但前提是各組的資料點數量相同；否則你必須使用加權平均才能得到正確的整體平均值（而這需要知道那些已遺失的資料點）。如果各組的資料點數量不同（例如 web.1 有 100 個請求、web.2 有 57 個、web.3 有 98 個），那麼對這些平均值做不加權的平均會嚴重失真，因為它讓每一組的平均值獲得同等權重，而不論該組的資料量大小。</p>
 <p>如果你事先預料到這個問題，你可以改為收集兩個略有不同的值來揭露這項資訊，例如請求數量，以及服務每個請求所花費的總時間，如下所示：</p>
-<p class="fn">伺服器 請求總數 回應時間（毫秒）</p>
-<p class="fn">web.1 100 12,000</p>
-<p class="fn">web.2 57 13,110</p>
-<p class="fn">web.3 98 19,600</p>
+<figure class="plate">
+<div class="table-wrap">
+<table class="datatable">
+<thead><tr><th>Server</th><th>Requests</th><th>Total response time (ms)</th></tr></thead>
+<tbody><tr><td>web.1</td><td>100</td><td>12,000</td></tr><tr><td>web.2</td><td>57</td><td>13,110</td></tr><tr><td>web.3</td><td>98</td><td>19,600</td></tr></tbody>
+</table>
+</div>
+</figure>
 <p>有了這些未經聚合的值，你就能算出每個實例的平均回應時間，也能將它們全部合併起來，得出準確的平均回應時間 175 毫秒。「直方圖（histogram）」這種指標類型正是為了實現這類資料擷取而設計的。</p>
 <p>有了正確的指標，你就能得到你需要的答案。不過，這需要一些猜測。你可能只是收集了各實例的平均回應時間，因為看起來已經夠用了。你甚至可能一直沒意識到自己需要知道整個服務跨所有實例的平均回應時間是多少，直到某次特定的調查需要這個答案為止。</p>
 <p>如果你在需要這個答案之前，沒想到要先設好直方圖指標，那麼現在也無法回頭取得資料了。你能做的最多就是設好它以供未來使用，並期望有朝一日還會需要問同樣的問題。</p>
@@ -116,18 +114,14 @@ web.<span class="tok-number">3</span>
 [...]
 }</pre>
 <p>我們可以把磁碟上的這組日誌想成以下這個表格：</p>
-<pre class="code">timestamp
-message
-<span class="tok-number">6</span>:<span class="tok-number">01</span>:<span class="tok-number">00</span>
-accepted connection on port <span class="tok-number">80</span> <span class="tok-keyword">from</span> <span class="tok-number">10.0.0.3</span>:<span class="tok-number">63349</span>
-<span class="tok-number">6</span>:<span class="tok-number">01</span>:<span class="tok-number">03</span>
-basic authentication accepted <span class="tok-keyword">for</span> user: foo
-<span class="tok-number">6</span>:<span class="tok-number">01</span>:<span class="tok-number">15</span>
-processing request <span class="tok-keyword">for</span> /<span class="tok-keyword">super</span>/slow/path
-<span class="tok-number">6</span>:<span class="tok-number">01</span>:<span class="tok-number">18</span>
-request succeeded, sent response code <span class="tok-number">200</span>
-<span class="tok-number">6</span>:<span class="tok-number">01</span>:<span class="tok-number">19</span>
-closed connection to <span class="tok-number">10.0.0.3</span>:<span class="tok-number">63349</span></pre>
+<figure class="plate">
+<div class="table-wrap">
+<table class="datatable">
+<thead><tr><th>timestamp</th><th>message</th></tr></thead>
+<tbody><tr><td>6:01:00</td><td>accepted connection on port 80 from 10.0.0.3:63349</td></tr><tr><td>6:01:03</td><td>basic authentication accepted for user: foo</td></tr><tr><td>6:01:15</td><td>processing request for /super/slow/path</td></tr><tr><td>6:01:18</td><td>request succeeded, sent response code 200</td></tr><tr><td>6:01:19</td><td>closed connection to 10.0.0.3:63349</td></tr></tbody>
+</table>
+</div>
+</figure>
 <p>要建立一個查詢來擷取這一組特定的資料會相當複雜。舉例來說，如果你想知道兩個時間區間之間所有不重複的用戶，你就得被迫使用像正規表達式（regex）這樣的工具去解析每一筆訊息欄位：</p>
 <pre class="code"><span class="tok-keyword">SELECT</span> DISTINCT
   regexp_extract(message, <span class="tok-string">'authentication accepted for user: (\w+)'</span>, <span class="tok-number">1</span>) <span class="tok-keyword">AS</span> user
@@ -167,31 +161,14 @@ closed connection to <span class="tok-number">10.0.0.3</span>:<span class="tok-n
   <span class="tok-string">"authority"</span>: <span class="tok-string">"10.0.0.3:63349"</span>
 }</pre>
 <p>如果你的後端把這些日誌視為結構化資料，最終你會得到一個像這樣的表格：</p>
-<pre class="code">timestamp
-message
-port
-authority
-user
-path
-status
-<span class="tok-number">6</span>:<span class="tok-number">01</span>:<span class="tok-number">00</span>
-accepted connection
-<span class="tok-number">80</span>
-<span class="tok-number">10.0.0.3</span>:<span class="tok-number">63349</span>
-<span class="tok-number">6</span>:<span class="tok-number">01</span>:<span class="tok-number">03</span>
-basic authentication
-accepted
-alice
-<span class="tok-number">6</span>:<span class="tok-number">01</span>:<span class="tok-number">15</span>
-processing request
-/<span class="tok-keyword">super</span>/
-slow/path
-<span class="tok-number">6</span>:<span class="tok-number">01</span>:<span class="tok-number">18</span>
-sent response code
-<span class="tok-number">200</span>
-<span class="tok-number">6</span>:<span class="tok-number">01</span>:<span class="tok-number">19</span>
-closed connection
-<span class="tok-number">10.0.0.3</span>:<span class="tok-number">63349</span></pre>
+<figure class="plate">
+<div class="table-wrap">
+<table class="datatable">
+<thead><tr><th>timestamp</th><th>message</th><th>port</th><th>authority</th><th>user</th><th>path</th><th>status</th></tr></thead>
+<tbody><tr><td>6:01:00</td><td>accepted connection</td><td>80</td><td>10.0.0.3:63349</td><td></td><td></td><td></td></tr><tr><td>6:01:03</td><td>basic authentication accepted</td><td></td><td></td><td>alice</td><td></td><td></td></tr><tr><td>6:01:15</td><td>processing request</td><td></td><td></td><td></td><td>/super/slow/path</td><td></td></tr><tr><td>6:01:18</td><td>sent response code</td><td></td><td></td><td></td><td></td><td>200</td></tr><tr><td>6:01:19</td><td>closed connection</td><td></td><td>10.0.0.3:63349</td><td></td><td></td><td></td></tr></tbody>
+</table>
+</div>
+</figure>
 <p>現在，表達「計算兩個時間區間之間的唯一用戶數」這個查詢就簡單多了：</p>
 <pre class="code"><span class="tok-keyword">SELECT</span> DISTINCT user
 <span class="tok-keyword">WHERE</span> timestamp BETWEEN <span class="tok-string">'6:00:00'</span> AND <span class="tok-string">'7:00:00'</span>
