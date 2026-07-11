@@ -349,6 +349,10 @@
     padding: 0.6rem 0.8rem;
     border-bottom: 1px solid var(--rule);
     vertical-align: top;
+    overflow-wrap: anywhere;
+  }
+  table.datatable td:nth-child(2) {
+    max-width: 16rem;
   }
   table.datatable thead th {
     background: var(--paper-raised);
