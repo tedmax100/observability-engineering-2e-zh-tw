@@ -82,7 +82,7 @@
 <p>當然，這些只是個開端。但希望透過這些範例的啟發，你能看出還有哪些細節對你和你的團隊來說可能有用，值得加以擷取。</p>
 <h2 class="section serif">建置資訊</h2>
 <p>在任何事故中，最先被問到的問題往往是「剛剛有部署什麼東西嗎？」或「發生了什麼變更？」與其急著打開部署工具或翻查 GitHub 儲存庫，你可以把建置資料加進遙測資料中。</p>
-<p>要把這些資料從建置系統串接到正式環境系統，讓它在執行期間可供存取，可能需要不少膠水程式碼，但在事故發生時能夠輕鬆取得這些資訊，其價值是無可估量的。</p>
+<p>要把這些資料從建置系統串接到營運環境系統，讓它在執行期間可供存取，可能需要不少膠水程式碼，但在事故發生時能夠輕鬆取得這些資訊，其價值是無可估量的。</p>
 <p>表 6‑5 展示了一些實用的建置資訊範例。</p>
 <figure class="plate">
 <figcaption><strong>表 6‑5．建置資訊屬性</strong></figcaption>
@@ -100,10 +100,10 @@
 <span class="tok-keyword">GROUP</span> <span class="tok-keyword">BY</span> http.status_code, service.version</pre>
 <p>如果這個查詢是用來將性能視覺化，你的圖表可能會像圖 6‑1 那樣呈現。</p>
 <p>此視覺化顯示，當 v2 開始服務流量時，由 v1 服務的 HTTP 200 OK 請求數量迅速下降。與此同時，HTTP 500 Internal Server Error 請求短暫地出現了一波高峰。若無法依版本區分，就很難判斷這些 500 錯誤是啟動 v2 伺服器的副作用，還是關閉 v1 伺服器所造成的問題。在這個案例中，所有 500 錯誤都來自 v1，因此我們應該確保系統能正確處理所有進行中的請求，並且能夠乾淨地關閉。</p>
-<figure class="plate"><img src="images/ch06_p127_x485.png" alt="" />
+<figure class="plate"><img src="images/ch06_p127_x479.png" alt="" />
 <figcaption>圖 6‑1　依 HTTP 狀態碼與版本分組的請求。可看到 500 錯誤出現尖峰，與v1 關閉的時間點相符。</figcaption></figure>
 <h3 class="subsection">feature flag</h3>
-<p>細粒度的 feature flag 是開發人員的超能力。它們讓你能只用一小部分用戶或流量，在生產環境中測試程式碼變更。搭配包含大量屬性的事件的廣泛可見性（我們會持續看到這點），表 6‑6 中的屬性能讓即使是棘手的遷移也變得更容易管理，並讓你有信心地發布程式碼。</p>
+<p>細粒度的 feature flag 是開發人員的超能力。它們讓你能只用一小部分用戶或流量，在營運環境中測試程式碼變更。搭配包含大量屬性的事件的廣泛可見性（我們會持續看到這點），表 6‑6 中的屬性能讓即使是棘手的遷移也變得更容易管理，並讓你有信心地發布程式碼。</p>
 <figure class="plate">
 <figcaption><strong>表 6‑6．Feature Flag 屬性</strong></figcaption>
 <div class="table-wrap">
@@ -160,7 +160,7 @@
   main = <span class="tok-keyword">true</span> AND
   service.name = <span class="tok-string">"api-service"</span></pre>
 <p class="fn">圖 6‑2 的視覺化呈現了範例查詢所接收資料的圖形化表示。</p>
-<figure class="plate"><img src="images/ch06_p130_x504.png" alt="" />
+<figure class="plate"><img src="images/ch06_p130_x498.png" alt="" />
 <figcaption>圖 6‑2. 回應大小的熱圖：大部分落在固定範圍內，但有明顯的離群值值得進一步調查。</figcaption></figure>
 <p>在此可以看到，某些 HTTP 請求的回應主體大小異常大。這些離群值在調查性能異常時可能提供有用的線索。它們可能是錯誤，也可能是合理的資料——無論是來自很少被呼叫的路由，還是回傳大量資料集的用戶請求。</p>
 <p>HTTP User‑Agent 標頭包含大量資訊。不要仰賴正規表示式查詢來事後解析它們。有了包含大量屬性的事件，從一開始就沒有理由不將它們解析成結構化資料。表 6‑9 列出了值得擷取的實用用戶代理元資料。</p>
@@ -205,7 +205,7 @@ _version</pre>
   service.name = <span class="tok-string">"api-service"</span>
 <span class="tok-keyword">GROUP</span> <span class="tok-keyword">BY</span> http.route</pre>
 <p>在圖 6‑3 中，我們看到了 P99 延遲的視覺化結果。</p>
-<figure class="plate"><img src="images/ch06_p132_x516.png" alt="" />
+<figure class="plate"><img src="images/ch06_p132_x510.png" alt="" />
 <figcaption>圖 6‑3. 依路由拆解的 P99 圖表。只有部分路由出現尖峰。可依應用程式版本進一步拆解此視圖，以檢查這是否是由某次部署所造成。</figcaption></figure>
 <p>如果沒有路由資訊，你只會看到請求數突然出現尖峰，卻無法進一步得知這些緩慢請求有什麼共同點。透過依 HTTP 路由對請求進行分組，在這個範例中，你可以看到只有 POST /checkout 與 POST /signup 這兩個路由的請求較慢。</p>
 <h3 class="subsection">時間資訊</h3>
@@ -249,7 +249,7 @@ _version</pre>
   service.name = <span class="tok-string">"api-service"</span></pre>
 <p>我的服務對資料庫發出的呼叫次數應該算合理⋯⋯對吧？</p>
 <p>在圖 6‑4 中，我們可以看到這個範例查詢的結果。</p>
-<figure class="plate"><img src="images/ch06_p135_x535.png" alt="" />
+<figure class="plate"><img src="images/ch06_p135_x529.png" alt="" />
 <figcaption>圖 6‑4：每個請求的資料庫查詢熱圖：呈現雙峰分佈，但也有一些發出大量請求的離群值。</figcaption></figure>
 <p>此視覺化以熱圖呈現，顯示出雙峰分佈，大多數請求遵循資料庫通訊的兩種模式之一。然而，你也會注意到，有一小部分請求所消耗的流量遠遠超過正常水準。</p>
 <h2 class="section serif">錯誤</h2>
@@ -331,7 +331,7 @@ _version</pre>
   user.id = <span class="tok-number">5838</span>
 <span class="tok-keyword">GROUP</span> <span class="tok-keyword">BY</span> http.route</pre>
 <p class="fn">圖 6‑5 是這個查詢的視覺化結果。</p>
-<figure class="plate"><img src="images/ch06_p140_x557.png" alt="" />
+<figure class="plate"><img src="images/ch06_p140_x551.png" alt="" />
 <figcaption>圖 6‑5：某位用戶活動的圖表：在最右側，可以看到一個打向同一個路由的大尖峰。這張圖為調查提供了一個起點。</figcaption></figure>
 <p>在這個案例中，我們現在可以清楚看到用戶的行為突然改變，不斷猛烈存取單一端點，直到配額耗盡為止。這可能是用戶自行開發的自動化程式出了錯，也可能是他們的驗證憑證已經外洩，導致有人冒充其活動。深入探究像是被存取的路由、HTTP 用戶代理程式以及來源 IP 之類的元資料，應該有助於快速釐清這裡發生了什麼事。</p>
 <h2 class="section serif">快取</h2>
@@ -375,7 +375,7 @@ _version</pre>
   main = <span class="tok-keyword">true</span> AND
   service.name = <span class="tok-string">"api-service"</span></pre>
 <p class="fn">圖 6‑6 顯示一個視覺化結果。</p>
-<figure class="plate"><img src="images/ch06_p143_x574.png" alt="" />
+<figure class="plate"><img src="images/ch06_p143_x568.png" alt="" />
 <figcaption>圖 6‑6　服務進入當機循環時運行時間的熱力圖：以對數尺度呈現資料時，異常情況更為明顯。</figcaption></figure>
 <p>現在，我們對正在發生的事情有了重大線索！每個服務啟動後，運行幾秒鐘、處理一些流量，接著就進入當機循環。我們的下一步應該是加入 GROUP BY service.version，看看這是否與新版本發布有關。如果有關聯，那麼關於是什麼觸發了此次部署、是誰部署的，以及所部署的程式碼變更等中繼資料，很可能就能提供我們所需的脈絡，並大幅縮短事故調查的時間。</p>
 <h2 class="section serif">指標</h2>
@@ -400,7 +400,7 @@ _version</pre>
 <p>請注意，以這種方式擷取指標在數學上並不嚴謹。因為你只有在有流量進來時才能取得資料，無法計算出經得起嚴格檢驗的 CPU 負載 P90 值，但在實務上通常沒有問題。</p>
 <p>視覺化範例查詢的結果（如圖 6‑7 所示）已足夠讓你在除錯時快速獲得一些線索，而不需要切換到其他工具，尤其是當你能避免計算並改用熱力圖來視覺化時。</p>
 <p>不過我不建議在這類資料上設定警報。一般的指標更適合用於此目的。</p>
-<figure class="plate"><img src="images/ch06_p145_x584.png" alt="" />
+<figure class="plate"><img src="images/ch06_p145_x578.png" alt="" />
 <figcaption>圖 6‑7　範例：使用結構化事件上標記的指標資料，來取得系統當前狀況的脈絡。</figcaption></figure>
 <h2 class="section serif">一種過濾掉其他一切的慣例</h2>
 <p>雖然我們正在精心打造某些「寬」事件，但這些幾乎肯定不是我們唯一發出的事件。你仍然可以在有幫助的地方使用其他日誌！</p>

@@ -52,7 +52,7 @@ VALUES
 <p>欄式儲存與壓縮</p>
 <p>接著，各欄位的值會依照資料列的排序順序，以欄式格式分別寫入。在寫入之前，每個欄位都會先經過壓縮。可觀測性資料的壓縮率經常能達到20:1 甚至更高。</p>
 <dl class="deflist"><dt>資料分區完成</dt><dd>壓縮後的欄位檔案、稀疏索引與中繼資料會一起打包成前面提到的不可變分區。這些分區之後會在背景中合併，形成新的、更大的分區，但每個個別的分區在建立後即可立即用於查詢，讓延遲抵達的資料也能有效地儲存與查詢。</dd><dt>資料組織</dt><dd>接著 ClickHouse 可以將相關的部分（part）儲存在稱為分區（partition）的群組或資料夾中。部分（part）永遠不會跨分區合併，因此可以讓某些操作以資料夾為整體進行。分區應該是粗粒度的，並基於低基數的欄位，因為設定細粒度的分區會妨礙 ClickHouse 對部分進行優化。</dd></dl>
-<figure class="plate"><img src="images/ch14_p279_x1114.png" alt="" />
+<figure class="plate"><img src="images/ch14_p279_x1103.png" alt="" />
 <figcaption>圖 14‑1　資料列儲存在顆粒（granule）中，並依照主鍵中定義的欄位排序。</figcaption></figure>
 <p>儲存每個顆粒起始位置的稀疏主索引，讓 ClickHouse 能夠優化尋找特定位置的速度。</p>
 <h2 class="section serif">查詢執行</h2>
@@ -272,7 +272,7 @@ INDEX idx_message Message TYPE tokenbf_v1(<span class="tok-number">32768</span>,
 <p>此索引的最終效果是對文字 token 進行簡單的文字型搜尋。當套用於包含大量唯一值的字串欄位，且查詢的是相對罕見的詞彙時（跳過的 granule 越多越好），性能最佳。</p>
 <p>MinMax 索引是另一種跳躍索引，它為每個 granule 儲存特定欄位的最小值與最大值。在可觀測性資料集中尋找異常情況（例如異常長的跨度）時，它們特別有用。舉例來說，在一個包含 Duration 欄位的追蹤跨度資料表中，該索引會為每個 granule 儲存最小與最大的持續時間。當你查詢異常值時（例如Duration 超過某個閾值的跨度），ClickHouse 可以透過單一比較就決定是否可以跳過整個 granule，避免不必要的數千列掃描。</p>
 <p class="fn">圖 14‑2 展示了一個範例，說明 MinMax 索引如何為查詢篩選 granule，藉此減少需要讀取的資料量。</p>
-<figure class="plate"><img src="images/ch14_p293_x1207.png" alt="" />
+<figure class="plate"><img src="images/ch14_p293_x1196.png" alt="" />
 <figcaption>圖 14‑2. MinMax 索引過濾器範例。</figcaption></figure>
 <p>ClickHouse 為欄位引入了反向索引，以加速全文搜尋。此功能延伸了跳過索引的概念，透過反向索引為基於 token 的查詢排除不相關的顆粒（granule）。其結果是日誌與文字搜尋的效能顯著提升，同時設定開銷極小、結果具確定性。這種做法類似於 Retriever 上使用基於 Bleve 的全文搜尋索引。</p>
 <div class="callout"><img src="images/ch14_p293_x37.png" alt="" /><p>欄位具體化（column materialization）。ClickHouse 在資料建模上一項強大的功能，就是能夠將欄位具體化。這表示某個欄位（通常衍生自既有欄位）會被單獨儲存於磁碟上，並自動更新。雖然像 Map 這類彈性資料型別，非常適合半結構化資料的初始擷取，但在大規模情境下對其進行過濾或查詢速度會較慢，因為需要在執行期間解析整個 map。</p></div>
@@ -291,7 +291,7 @@ INDEX idx_message Message TYPE tokenbf_v1(<span class="tok-number">32768</span>,
 <p>針對物化視圖的查詢速度快得多，因為資料早已預先計算完成，非常適合重複的存取模式或即時分析。</p>
 <p>使用增量式物化視圖來實現此方法有兩個優點。首先，它為插入提供了一致的API；來源資料表定義了單一的資料進入點，其結構描述作為事件必須具備的元資料基準。</p>
 <p>第二個優點是能夠在插入時對事件資料進行聚合衍生或套用過濾。一個具體的例子是 SELECT 出被視為業務關鍵的事件，例如圖 14‑3 範例中的錯誤，並將其路由到另一張具有不同保留設定的資料表，以加快查詢速度。</p>
-<figure class="plate"><img src="images/ch14_p295_x1221.png" alt="" />
+<figure class="plate"><img src="images/ch14_p295_x1210.png" alt="" />
 <figcaption>圖 14‑3。物化視圖在插入時過濾與聚合資料的示意圖。資料列進入 logs_null，一個視圖將所有事件複製到 all_logs，另一個視圖將錯誤過濾到 error_logs，而一個串連的視圖則將這些錯誤聚合到 error_aggregates 以供快速查詢。</figcaption></figure>
 <p>合併資料表（Merge table）。在許多情況下，前述技術會產生多張資料表，各自包含不同的事件子集。這可能導致用戶需要同時對多張資料表執行查詢的情況。為了改善跨多張資料表查詢的便利性，ClickHouse 提供了Merge table。</p>
 <p>雖然名稱與 MergeTree 引擎的名字相似到容易讓人混淆，但這項功能在概念上完全不同。它讓你能夠針對多個底層表定義一個視圖，無論這些表在結構描述、分區方式或排序順序上是否不同。對用戶而言，它的行為仍然如同單一資料表，即使一個 Merge 資料表可能結合了多個結構描述變體，這些變體是隨著時間累積而成，各自針對寫入當下的資料形態進行調整。</p>
@@ -301,14 +301,14 @@ INDEX idx_message Message TYPE tokenbf_v1(<span class="tok-number">32768</span>,
 <p>採用這種方式能讓你隨著時間演進你的擷取策略與結構描述，而不需要重寫歷史資料或破壞現有查詢，同時提供一個穩定的 API 供工程師或工具使用。舉例來說，這可能涵蓋某個團隊將 HTTP 狀態碼從整數改為列舉型別（enum datatype），或是將 user_id 從 map 的鍵提升為完整鍵的情境。</p>
 <p>物化視圖（materialized view）與 Merge Table 引擎的結合，讓你可以將擷取的資料拆分到專用的資料表中，同時透過 Merge table 引擎以統一視圖跨表查詢。作為一個趨同演化（convergent evolution）的例子，Retriever資料儲存也實作了此功能的一種變體，也就是 COALESCE 計算欄位，它可以從任何現存的欄位中進行選取。</p>
 <p>舉例來說，圖 14‑4 說明了插入 logs_null 表中的日誌如何被過濾到兩個獨立的資料表——一個包含所有非錯誤日誌，另一個僅儲存錯誤日誌。用戶接著可以使用 Merge table 函式跨兩個資料表進行查詢，以建立所有日誌的統一視圖。</p>
-<figure class="plate"><img src="images/ch14_p296_x1227.png" alt="" />
+<figure class="plate"><img src="images/ch14_p296_x1216.png" alt="" />
 <figcaption>圖 14‑4：Merge 函式如何用來回傳兩個獨立資料表合併結果的範例。</figcaption></figure>
 <p>無論是透過跳躍索引（skip index）與投影（projection）來提升單一表格內的查詢效率，還是透過具體化視圖（materialized view）與 Merge 表格跨多個表格組織資料，每種方法都能讓 schema 設計與實際查詢模式之間有更好的對應關係。透過隨著工作負載成長與變化持續演進資料模型，你就能在不增加操作複雜度的情況下維持快速且可預測的性能，並為可觀測性平台擴展的下一階段打下基礎。</p>
 <h2 class="section serif">資料生命週期管理</h2>
 <p>可觀測性資料遵循可預測的存取模式：近期資料經常被查詢用於即時除錯與警報，而歷史資料則較少被存取，主要用於趨勢分析與鑑識。這種自然的生命週期使分層儲存成為理想的成本優化策略。</p>
 <p>ClickHouse 的存活時間（TTL）策略能根據資料年齡在儲存層之間自動移動資料。我們建議將固態硬碟（SSD）儲存——無論是實例掛載還是持久化磁碟區——用於熱層，資料最初會寫入此處，然後再根據時間或磁碟填滿百分比移動到物件儲存層（例如 S3 或 Google Cloud Storage）。</p>
 <p>這裡的時間週期通常會根據你的存取模式以及大多數查詢發生的期間來決定。與 Retriever 不同的是，Retriever 會試圖積極地將資料卸載到 S3，以擴大能平行讀取該資料的 worker 集合，而 ClickHouse（在此部署模式下）則是致力於讓資料盡可能長時間留在本機主機上，只要該主機仍有可能被查詢。之後資料便可逐步轉移到成本更低的儲存類別。這個概念如圖 14‑5 所示，其中NVMe（非揮發性記憶體快速存取，non‑volatile memory express）中的資料被查詢的頻率高於旋轉式磁碟甚至物件儲存中的資料。</p>
-<figure class="plate"><img src="images/ch14_p297_x1234.png" alt="" />
+<figure class="plate"><img src="images/ch14_p297_x1223.png" alt="" />
 <figcaption>圖 14‑5：NVMe 中的資料比旋轉式磁碟或物件儲存中的資料更常被存取。</figcaption></figure>
 <p>查詢介面維持不變，ClickHouse 會依需要從適當的層級擷取資料。ClickHouse 支援大多數物件儲存（例如 S3、Google Cloud Storage、MinIO與 Azure Blob Storage），每一種都提供降低成本的封存儲存選項。</p>
 <p>以下 SQL 陳述式修改了 events 資料表，指定了數個 TTL——超過 90 天的資料會被移到 s3_ia_disk 磁碟，而超過一年的事件會被刪除：</p>
@@ -337,46 +337,46 @@ MODIFY TTL
 <p>一個典型的三節點 Keeper 群集會維護複寫日誌。所有複本一開始都位於相同的日誌位置。當節點執行本地的插入、合併、變更或 DDL 陳述式時，日誌會非同步地重播到其他複本。這最終會使複寫表趨於一致——在複本收斂之前，查詢可能會短暫回傳過時資料。對於大多數可觀測性資料而言，最終一致性已經足夠，但當需要更強的保證時，ClickHouse 透過 session 層級的設定insert_quorum 支援仲裁寫入（quorum write）。啟用後，只有在資料寫入到設定數量的複本時，INSERT 才會成功。如果未達到仲裁數，寫入就會失敗，且已插入的資料區塊會從所有複本中移除。</p>
 <p>讓我們來看一個範例，說明在由三個 ClickHouse 節點組成的叢集中複寫表的運作方式。以下步驟說明插入的資料如何在 ClickHouse 叢集中的多個節點間複寫：</p>
 <p>1. 一開始，複寫表是空的（見圖 14‑6）。接著，Node 1 收到兩個插入陳述式，建立了兩個資料部分（part）（見圖 14‑7）：Part A 與 Part B。它將中繼資料記錄在複寫日誌中，而該日誌儲存於 Keeper。</p>
-<figure class="plate"><img src="images/ch14_p300_x1245.png" alt="" />
+<figure class="plate"><img src="images/ch14_p300_x1234.png" alt="" />
 <figcaption>圖 14‑6。Node 1 中建立了兩個資料部分，A 與 B。</figcaption></figure>
-<figure class="plate"><img src="images/ch14_p301_x1248.png" alt="" />
+<figure class="plate"><img src="images/ch14_p301_x1237.png" alt="" />
 <figcaption>圖 14‑7。複寫日誌中同時新增了 Part A 與 Part B 的項目。</figcaption></figure>
 <p>2. 接著，Node 2 透過擷取第一筆日誌項目來重播它，並從 Node 1 下載 Part A（參見圖 14‑8）。</p>
-<figure class="plate"><img src="images/ch14_p301_x1250.png" alt="" />
+<figure class="plate"><img src="images/ch14_p301_x1239.png" alt="" />
 <figcaption>圖 14‑8。Node 2 從 Node 1 下載 Part A。</figcaption></figure>
 <p>3. Node 3 重播兩筆日誌項目，並從 Node 1 下載 Part A 與 Part B（參見圖14‑9）。</p>
-<figure class="plate"><img src="images/ch14_p301_x1252.png" alt="" />
+<figure class="plate"><img src="images/ch14_p301_x1241.png" alt="" />
 <figcaption>圖 14‑9。Node 3 從 Node 1 下載 Part A 與 B。</figcaption></figure>
 <p>4. 接著，Node 3 將 Part A 與 Part B 合併為 Part C，刪除輸入的 Part，並將合併紀錄記錄到複寫日誌中（見圖 14‑10）。</p>
-<figure class="plate"><img src="images/ch14_p302_x1255.png" alt="" />
+<figure class="plate"><img src="images/ch14_p302_x1244.png" alt="" />
 <figcaption>圖 14‑10。Node 3 將 Part A 與 Part B 合併為 Part C。</figcaption></figure>
 <p>5. Node 2 追上進度並從 Node 1 下載 Part B（見圖 14‑11）。</p>
-<figure class="plate"><img src="images/ch14_p302_x1257.png" alt="" />
+<figure class="plate"><img src="images/ch14_p302_x1246.png" alt="" />
 <figcaption>圖 14‑11。Node 2 從 Node 1 下載 Part B。</figcaption></figure>
 <p>6. 當 Node 1 與 Node 2 讀到複寫日誌中的 Merge 紀錄時，會依叢集設定從Node 3 下載 Part C，或自行執行合併。之後，Node 1 與 Node 2 將刪除Part A 與 Part B（見圖 14‑12）。</p>
-<figure class="plate"><img src="images/ch14_p303_x1260.png" alt="" />
+<figure class="plate"><img src="images/ch14_p303_x1249.png" alt="" />
 <figcaption>圖 14‑12。Node 1 與 Node 2 從 Node 3 下載 Part C。</figcaption></figure>
 <p>ClickHouse 也支援備份，包括物件儲存的支援。這可以用於在系統從冷啟動開始時進行還原——也就是叢集中不存在任何資料的情況。</p>
 <div class="callout"><img src="images/ch14_p303_x37.png" alt="" /><p>複寫可防範硬體故障並支援自動容錯移轉。它也能提升查詢性能。透過並行副本功能，ClickHouse 會自動將查詢拆分，並將這些區塊分派給所有副本並行處理。</p></div>
 <h2 class="section serif">分片</h2>
 <p>當單一主機的容量已超出負荷時，應新增主機並將某個資料表的資料拆分成兩個（或多個）分片，以進行水平擴展。ClickHouse 採用無共享（shared‑nothing）架構：分片主機之間不會互相協調，且每個分片的資料表都是獨立的。圖 14‑13 展示了一個具有兩個分片的簡單 ClickHouse 叢集範例。</p>
-<figure class="plate"><img src="images/ch14_p303_x1265.png" alt="" />
+<figure class="plate"><img src="images/ch14_p303_x1254.png" alt="" />
 <figcaption>圖 14‑13。具有兩個節點與兩個分片的 ClickHouse 叢集。</figcaption></figure>
 <p>在此結構中，寫入是完全獨立的，由插入資料的應用程式決定要使用哪個分片，如圖 14‑14 所示。這是一種非常靈活的做法，可支援任何分片結構。</p>
-<figure class="plate"><img src="images/ch14_p304_x1270.png" alt="" />
+<figure class="plate"><img src="images/ch14_p304_x1259.png" alt="" />
 <figcaption>圖 14‑14. 具有兩個節點與兩個分片的 ClickHouse 叢集，使用 Distributed資料表與分片鍵來分配讀寫。</figcaption></figure>
 <p>為方便起見，可以建立一個 Distributed 資料表。它本身不儲存資料，而是作為本機與遠端資料表的「視圖」或「代理」。插入的資料可以根據衍生自資料的指定「分片鍵」（例如 ServiceName 或 Region）自動分配到叢集的各個分片，該分片鍵決定特定的一列資料會儲存在哪個分片上。分片鍵不需要與主鍵有關。或者，ClickHouse 也可以在每次插入時隨機選擇一個分片，以在叢集節點間達到均勻的資料分佈。</p>
 <p>在此範例中，兩個分片上都設定了一個 Distributed 資料表，因此用戶端可以連接到任一節點來插入或選取資料。插入資料時，ClickHouse 會為每一列資料評估分片鍵，判斷該列應儲存在何處，並將插入路由到該特定分片。選取資料時，Distributed 資料表會將查詢轉發給所有持有目標資料表分片的伺服器，每台 ClickHouse 伺服器會平行計算其本機的彙總結果。接著，持有最初目標 Distributed 資料表的 ClickHouse 伺服器會收集所有本機結果，將它們合併成最終的全域結果，並回傳給查詢發送者。</p>
 <h2 class="section serif">單一區域可觀測性叢集</h2>
 <p>一個用於可觀測性工作負載的簡單 ClickHouse 叢集，通常由兩個使用ReplicatedMergeTree 資料表的 ClickHouse 節點，以及一個具有三個副本的Keeper 群集所組成。為了提高可靠性，最好將 Keeper 部署在獨立的節點上。寫入可以在多個 ClickHouse 節點之間進行負載平衡，以提升吞吐量，如圖14‑15 所示。</p>
-<figure class="plate"><img src="images/ch14_p305_x1276.png" alt="" />
+<figure class="plate"><img src="images/ch14_p305_x1265.png" alt="" />
 <figcaption>圖 14‑15。使用 ReplicatedMergeTree 進行多節點複寫的 ClickHouse 叢集。</figcaption></figure>
 <p>在現代硬體上，一台配備 32 核心 CPU 與 128 GB RAM 的 ClickHouse 伺服器每天可攝入約 200 億筆事件，尖峰可達每秒約 30 萬到 40 萬筆事件。若在複本之間妥善做負載平衡，可達每秒 50 萬筆事件。增加更多節點幾乎能讓攝入頻寬呈線性擴展。得益於 ClickHouse 強大的壓縮能力，可觀測性資料通常能縮小 10 到 20 倍。舉例來說，單日 20 TB（terabytes）的原始資料量，壓縮後在磁碟上可能只剩 1 到 2 TB。以兩台伺服器為例，每台配備 7.5 TB 本機掛載的 NVMe 磁碟，採高可用性架構（也就是每台伺服器都儲存一份完整的資料副本）：在需要動用物件儲存以做更長期保留之前，這樣的配置至少可以儲存三天份的資料。</p>
 <p>ClickHouse 的查詢性能高度取決於查詢模式。在此架構下，只要應用有效的架構設計、適當的分區以及有效的索引等最佳實務，即使在大規模情況下，典型的可觀測性工作負載也能達到次秒級的回應時間。</p>
 <h2 class="section serif">跨區域可觀測性叢集</h2>
 <p>在跨區域部署中，每個區域各自處理自己的攝入作業。寫入會導向該區域的本地 ClickHouse 節點，藉此將延遲降到最低、提升可靠性並降低成本。如圖14‑16 所示，上層有一張 Distributed 資料表，以 Region 欄位作為分片鍵——主要用於將查詢路由到正確的區域——而所有寫入則都維持在本地進行。</p>
 <p>區域內的擴展是透過在該區域內增加分片與複本來實現。這樣做能同時提升攝入頻寬與查詢平行度，而複本則能提升容錯能力。</p>
-<figure class="plate"><img src="images/ch14_p306_x1282.png" alt="" />
+<figure class="plate"><img src="images/ch14_p306_x1271.png" alt="" />
 <figcaption>圖 14‑16。使用 Distributed 表引擎與 ReplicatedMergeTree 的跨區域可觀測性叢集。</figcaption></figure>
 <p>跨區域擴展只是簡單的組態設定與資源配置：新增一個區域，只需在Distributed 表定義中以 Region 欄位為鍵擴充另一個分片即可。查詢會自動感知新區域，讓使用者能進行跨所有區域的聯合分析，或將查詢範圍限縮在單一區域以提升效率。</p>
 <p>這種設計自然而然地實現了地理分散的故障隔離。若某個區域無法使用，查詢仍可繼續在其餘區域上執行。資料在寫入時仍保留在其所屬區域內，但全域的Distributed 表提供了統一的檢視，確保整個部署同時具備韌性與可用性。</p>
@@ -398,7 +398,7 @@ MODIFY TTL
 <h2 class="section serif">資料視覺化</h2>
 <p>在我們將所有遙測資料放入 ClickHouse 之後，最關鍵的問題是：如何讓 SRE與開發人員更容易使用這些功能？</p>
 <p>由於 ClickHouse 支援標準 SQL，用戶可以在其上建立自己的可觀測性工具以符合需求。這對於採用極致規模或高度專門化工作流程的團隊來說相當有用，不過大多數用戶其實只需要一個開箱即用的熟悉介面，例如 HyperDX 所提供的介面，如圖 14‑17 所示。</p>
-<figure class="plate"><img src="images/ch14_p308_x1294.png" alt="" />
+<figure class="plate"><img src="images/ch14_p308_x1283.png" alt="" />
 <figcaption>圖 14‑17 HyperDX 開源介面，用於搜尋日誌與追蹤。</figcaption></figure>
 <p>對大多數團隊而言，HyperDX——一個採 MIT 授權、專為 ClickHouse 原生打造的開源視覺化層——提供了探索可觀測性資料的直覺方式。它提供進階篩選、時間軸檢視與即時儀表板，並搭配 Lucene 風格的查詢語法，讓複雜查詢比使用 SQL 更簡單。我們自行建置 UI 時，這個工具還不存在，但如果當時已有，我們會毫不猶豫地以它為基礎來開發。</p>
 <h2 class="section serif">在可觀測性工作負載中使用 ClickHouse</h2>

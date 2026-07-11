@@ -65,10 +65,10 @@
 <h2 class="section serif">指標通常是經過聚合的</h2>
 <p>指標記錄與其他事件類型不同，因為它們通常會被合併。所有名稱、屬性集合相同，且落在同一時間區間內的指標記錄，都會被聚合成單一一筆記錄。</p>
 <p>舉例來說，如果你正在追蹤服務處理了多少個 HTTP 請求，可以使用「計數器（counter）」指標（見圖 5‑1）。你的服務的每個實例都會產生不同的值，接著這些值會被加總，以得出每一分鐘區間內所服務的請求總數。</p>
-<figure class="plate"><img src="images/ch05_p102_x374.png" alt="" />
+<figure class="plate"><img src="images/ch05_p102_x372.png" alt="" />
 <figcaption>圖 5‑1。此範例展示計數器指標如何將 http.requests 在同一時間區間內的各種測量值透過加總方式聚合起來。</figcaption></figure>
 <p>另舉一個聚合的例子，假設你每 10 秒讀取一次溫度感測器，那麼每分鐘會有6 筆測量值。可以透過只保留最後一個值、捨棄其他值，將這些數據聚合為「gauge（量表）」指標（見圖 5‑2）。gauge 指標是一種可上升也可下降的時間序列值，用來表示會波動的數值。</p>
-<figure class="plate"><img src="images/ch05_p103_x377.png" alt="" />
+<figure class="plate"><img src="images/ch05_p103_x375.png" alt="" />
 <figcaption>圖 5‑2　與只會遞增的 counter 指標不同，gauge 可以任意增加或減少，用來擷取特定時間點的瞬時值。</figcaption></figure>
 <p>聚合存在一些固有的限制。舉一個無法運作的測量範例，假設你收到的資料是每分鐘、每個服務實例的平均 http.response 時間如下：</p>
 <figure class="plate">
@@ -105,7 +105,7 @@
 <span class="tok-number">6</span>:<span class="tok-number">01</span>:<span class="tok-number">15</span> processing request <span class="tok-keyword">for</span> /<span class="tok-keyword">super</span>/slow/path
 <span class="tok-number">6</span>:<span class="tok-number">01</span>:<span class="tok-number">18</span> request succeeded, sent response code <span class="tok-number">200</span>
 <span class="tok-number">6</span>:<span class="tok-number">01</span>:<span class="tok-number">19</span> closed connection to <span class="tok-number">10.0.0.3</span>:<span class="tok-number">63349</span></pre>
-<p>你可能已經習慣在本地開發環境中看到這樣的日誌，因為在那裡通常會有一條針對單一測試請求的連續日誌串流。我們往往會學會日誌的預期順序與模式，並在出現異常狀況時察覺到。雖然這在本地開發環境中運作得不錯，但這種做法在大規模的生產環境中除錯時往往會失效。將日誌視為結構化資料有助於我們理解為什麼會這樣。</p>
+<p>你可能已經習慣在本地開發環境中看到這樣的日誌，因為在那裡通常會有一條針對單一測試請求的連續日誌串流。我們往往會學會日誌的預期順序與模式，並在出現異常狀況時察覺到。雖然這在本地開發環境中運作得不錯，但這種做法在大規模的營運環境中除錯時往往會失效。將日誌視為結構化資料有助於我們理解為什麼會這樣。</p>
 <p>我們可以分別取出時間戳記與訊息，將這些內容對應成結構化事件：</p>
 <pre class="code">{
 “timestamp: “<span class="tok-number">2024</span>”,
@@ -178,7 +178,7 @@
 <h2 class="section serif">結構化日誌和結構化事件是一樣的嗎？</h2>
 <p>此時你可能會問：結構化日誌和結構化事件到底有什麼不同？簡單的答案是：沒有不同。細究起來，答案取決於你的資料儲存是把它們當成結構化資料還是字串來處理。</p>
 <h2 class="section serif">追蹤單一操作</h2>
-<p>在我們的範例中，我們一直在檢視單一操作的日誌，但任何真實的正式環境系統都會同時處理許多操作。當試圖了解系統中發生了什麼事時，若能看到日誌的線性進展會很有幫助，就像我們在本機開發時所看到的那樣。許多開發者不約而同想到同一個點子：給</p>
+<p>在我們的範例中，我們一直在檢視單一操作的日誌，但任何真實的營運環境系統都會同時處理許多操作。當試圖了解系統中發生了什麼事時，若能看到日誌的線性進展會很有幫助，就像我們在本機開發時所看到的那樣。許多開發者不約而同想到同一個點子：給</p>
 <p>為每個請求分配一個唯一的 ID，並將其加到每一行日誌中。看起來會像這樣：</p>
 <pre class="code">timestamp
 request_id
@@ -241,10 +241,10 @@ connection
 <p>為了理解追蹤運作的機制，我們將用一個範例來說明組成一條追蹤所需的各種元件。</p>
 <p>為了快速了解相互依賴之間可能發生問題的位置，將追蹤以瀑布式視覺化呈現會很有幫助，如圖 5‑3 所示。請求的每個階段都會依照該次除錯請求的開始時間與持續時間，顯示為一個獨立的區塊。</p>
 <div class="callout"><img src="images/ch05_p110_x37.png" alt="" /><p>瀑布式視覺化呈現了初始值如何受到一連串中間值的影響，進而形成最終的累積值。</p></div>
-<figure class="plate"><img src="images/ch05_p110_x418.png" alt="" />
+<figure class="plate"><img src="images/ch05_p110_x416.png" alt="" />
 <figcaption>圖 5‑3。這張瀑布式追蹤視覺化圖顯示了一次請求中的四個追蹤跨度。</figcaption></figure>
 <p>這個瀑布圖中的每一個區塊稱為一個追蹤跨度，簡稱跨度。在任何給定的追蹤中，一個跨度要嘛是根跨度——該追蹤中最上層的跨度——要嘛就是巢狀於根跨度之下的跨度。巢狀於根跨度之下的跨度，本身也可能擁有自己的巢狀跨度。這種關係有時被稱為親子關係。舉例來說，在圖 5‑4 中，如果服務 A 呼叫服務 B，而服務 B 又呼叫服務 C，那麼在該追蹤中，跨度 A 是跨度 B 的父項，而跨度 B 又是跨度 C 的父項。</p>
-<figure class="plate"><img src="images/ch05_p111_x423.png" alt="" />
+<figure class="plate"><img src="images/ch05_p111_x421.png" alt="" />
 <figcaption>圖 5‑4　一個具有兩個父跨度的追蹤。跨度 A 是根跨度，同時也是跨度 B 的父跨度。跨度 B 是跨度 A 的子跨度，同時也是跨度 C 的父跨度。跨度 C 是跨度 B 的子跨度，且本身沒有任何子跨度。</figcaption></figure>
 <p>請注意，一個服務可能會在同一個追蹤中被呼叫多次，並以個別跨度的形式出現，例如發生循環依賴（circular dependencies）的情況，或是在同一次服務跳轉（即單一網路呼叫）內，將密集運算拆分成平行函式來處理。實務上，請求在分散式系統中經常會經過雜亂且難以預測的路徑。</p>
 <p>為了建構出能呈現任何路徑（無論多麼複雜）所需的這種檢視畫面，我們需要針對每個組成元件取得五項資料：</p>
@@ -346,7 +346,7 @@ console.log(span);
 <p>到目前為止，這個範例還非常簡單。追蹤最擅長呈現的是彼此相依的事件。讓我們使用這個簡陋的函式庫，建立一組跨度的集合，用以代表一次端對端交易中不同的工作單元。</p>
 <p>如前面所提到的，彼此相關的關係是透過跨度 ID、追蹤 ID 與父跨度 ID 來對應的。這三個不同的 ID 組成了一個追蹤情境（trace context）。</p>
 <p>前兩者很簡單。父跨度 ID 則是讓系統在收到每個獨立的跨度之後，能夠將整個追蹤建構成一個有向無環圖（DAG）的關鍵。當以樹狀結構呈現時，就會產生如圖 5‑5 所示的瀑布圖（不過要記得，瀑布圖只是追蹤資料眾多可能視覺化方式中的一種）。</p>
-<figure class="plate"><img src="images/ch05_p115_x438.png" alt="" />
+<figure class="plate"><img src="images/ch05_p115_x435.png" alt="" />
 <figcaption>圖 5‑5：這個追蹤的父跨度（GET /profile/user）沒有父 ID。它的兩個子跨度（get‑profile‑photo 與 get‑profile‑data）的父 ID 都是這個根跨度。而get‑profile‑photo 跨度的子跨度（get‑photo‑caption）的父 ID，則是它的父跨度，而不是根跨度。</figcaption></figure>
 <h2 class="section serif">追蹤情境</h2>
 <p>追蹤情境是連結我們所有「花俏日誌」的關鍵。要做到這一點，我們的情境實際上只需要追蹤兩個值：追蹤 ID 與目前跨度的 ID。當我們建立一個新的跨度時，如果已經存在 spanID，我們可以繼承它，接著產生一個新的 spanID，並設定新的情境：</p>
