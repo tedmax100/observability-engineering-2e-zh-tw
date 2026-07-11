@@ -55,6 +55,15 @@ html = f'''<title>《可觀測性工程》第二版 — 中文譯本</title>
     color: var(--ink); box-shadow: var(--shadow);
   }}
   .preface-link:hover {{ color: var(--accent-ink); }}
+  .source-links {{
+    display: flex; flex-wrap: wrap; gap: 0.8rem;
+    margin: -1.6rem 0 3rem;
+  }}
+  .source-links a {{
+    font-size: 0.85rem; color: var(--ink-soft); text-decoration: none;
+    border-bottom: 1px dotted var(--rule);
+  }}
+  .source-links a:hover {{ color: var(--accent-ink); border-bottom-color: var(--accent-ink); }}
 </style>
 
 <main>
@@ -65,6 +74,10 @@ html = f'''<title>《可觀測性工程》第二版 — 中文譯本</title>
   </header>
 
   <p class="lede">邁向生產卓越之路。中文譯本網頁閱讀版，依原書結構逐章收錄。</p>
+
+  <p class="source-links">
+    <a href="https://www.honeycomb.io/observability-engineering-oreilly-book" target="_blank" rel="noopener">原書資訊與購書連結（Honeycomb）↗</a>
+  </p>
 
   <a class="preface-link" href="preface.html">序 →</a>
 
