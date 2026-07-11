@@ -1,0 +1,304 @@
+<title>第 11 章　運用服務水準目標達成可靠性 — 《可觀測性工程》第二版</title>
+<link rel="stylesheet" href="style.css">
+
+<nav class="chapnav">
+    <a href="ch10.html">← 上一章</a>
+    <a href="index.html">目錄</a>
+    <a href="ch12.html">下一章 →</a>
+  </nav>
+<main>
+  <header class="masthead">
+    <span class="eyebrow">Observability Engineering · Second Edition</span>
+    
+    <h1 class="title serif">第 11 章<br>運用服務水準目標達成可靠性</h1>
+    <div class="rule"></div>
+  </header>
+
+  <p>在前幾章中，我們探討了工程師出於好奇，針對系統特定面向主動發起分析的情境，以及 AI 代理如何能夠主動執行這類分析。但同樣重要的是，我們該如何進行反應式調查、維持系統穩定，並分析那些主動找上門來的狀況。在高可觀測性系統中，你該如何設定警報，以捍衛用戶的使用體驗？</p>
+<p>在本章中，我們將探討基於閾值的警報為何經常透過吵雜的告警使操作者精疲力竭（警報疲勞），分散式系統為何會讓這些問題雪上加霜，以及服務水準目標（SLO）如何提供一種更可靠、以用戶為中心的替代方案。當你能夠在高可觀測性系統中安全且有效地除錯正式環境時，服務水準目標（SLO）相較於傳統的警報方式具有多項優勢。我們將檢視這些優勢，並收錄一個真實案例研究，說明如何透過標準化、高品質的遙測作為起點，加速 SLO 的採用並更快地推出市場（由 Mat Vine 客座撰寫）。</p>
+<p>SLO 導入旅程中最困難的部分之一，就是單純地跨出第一步、劃下起始的界線。按照慣例，這需要大量的專業知識、實驗與時間。在本章中，我們也將向你展示如何運用生成式 AI 來加速這個過程。</p>
+<p>我們將先從低可觀測性系統中監控與警報的現況概述開始。</p>
+<h2 class="section serif">基於閾值的警報會導致警報疲勞</h2>
+<p>在基於閾值的監控中，設定警報是為了衡量團隊已經視為內部優先事項的內容，或是最容易衡量的內容。指標被用來追蹤從系統狀態衍生出的簡化屬性，希望某個特定閾值與服務故障相關，或可作為未來麻煩的領先指標。舉例來說，若 CPU 使用率超過 80% 達五分鐘，或可用記憶體低於 10%，或磁碟空間即將用盡，或執行中的執行緒數量超過 x 個，就觸發警報——或是其他任何一組簡單的量測方式。</p>
+<p>這些信號作為資料或許有用，但作為警報觸發條件時往往很糟糕。CPU 使用率飆升的偏差並不能告訴你用戶是否正經歷不良體驗。那可能表示備份工作正在執行，可能是垃圾回收，可能是真正的中斷，也可能是斷路器啟動以防止連鎖故障，因此實際的中斷時間比我們觀察到的峰值還要長。傳統的監控無法區分這種細微差異，因此仍會觸發警報。隨著時間推移，團隊可能會憑直覺得知這個警報不夠準確，進而自動忽略它。當這些信號被用作「潛在原因」指標——可能與用戶影響相關、也可能無關的間接代理指標——時，往往會產生高比例的偽陽性。</p>
+<p>在正式環境中負責自家軟體維運的資深工程團隊，通常會學會忽略（甚至直接抑制）這類型的警報，因為它們經常觸發，卻與實際的生產影響或急迫性無關。經常這麼做的團隊會採用類似這樣的說法：「別擔心那個警報，我們知道那個程序偶爾會耗盡記憶體。如果記憶體太高，我們可能會寫個自動化程式來重啟它。」</p>
+<p>習慣容忍充滿偽陽性的警報是一種已知的問題，也是危險的做法。在其他產業中，這種問題被稱為「異常行為被標準化」：這個詞源自於對挑戰者號太空梭災難的調查。當組織中的成員經常關閉警報或未對此採取行動時，他們最終會對這種偏離預期回應的做法變得麻木，不再覺得這樣做有什麼不對。</p>
+<p>在最好的情況下，那些被視為「正常」而遭到忽視的失敗，只會被當成背景噪音。但這並非無害的因應機制。當忽略警報變成常態，那唯一真正重要的警報就必須突破一整道由習得性不信任所築起的高牆。這種背景噪音會建立起一套完全錯誤的誘因，導致因連鎖系統故障而產生的疏失。</p>
+<p>在軟體業，基於閾值的警報訊噪比不佳，經常導致警報疲勞——並逐漸讓人對所有警報都不再留意，因為其中太多是誤報、無法採取行動，或根本沒有用。不幸的是，</p>
+<p>在基於閾值的警報方式中，事故會讓噪音加乘，因為每個警報都會同時觸發。</p>
+<p>事後回顧往往會產生行動項目，進而建立新的、更重要的警報，理論上這些警報應該要能及時觸發以防止問題發生。這會導致下次事故發生時產生更龐大的警報集合，除非過時或不穩定（flappy）的警報有被清理掉。這種警報不斷升級的模式，會造成警報氾濫日益加劇，並讓應變工程師需要判斷哪些警報重要、哪些不重要，認知負荷也隨之不斷提高。</p>
+<p>這類功能失調在軟體產業中十分常見，以至於許多監控與事故應變工具廠商都自豪地推出各種標榜「AIOps」的解決方案，用來為你分組、抑制或以其他方式處理那些警報量。額外的層級意味著額外的複雜度，以及潛在的漏報或誤報來源。</p>
+<p>這種情況究竟是如何變成可被接受的「正常」狀態？如果在正式環境中執行軟體的未來注定會產生大量噪音，多到必須靠人工方式處理，那麼可以肯定地說，這種情況早已遠遠超出異常行為被標準化的範疇。業界廠商如今已將這種異常狀況產品化，並樂於向你銷售用來管理它的機器學習解決方案。</p>
+<p>指標與基於閾值的警報，曾經在很久以前是我們理解複雜系統狀態的最佳工具。而如今，身為一個產業，我們正在其上疊加更多的功能失調與應急補丁，而不是去質疑這些基本工具是否真的是我們應該建立在其上的正確基礎。</p>
+<p>分散式系統讓這種失調現象更難以忽視。當團隊擴增其管理的相互通訊服務數量時，故障模式會呈指數增長，過去只是惱人的問題會變成無法接受的可靠性風險。現代系統需要一種替代方法。</p>
+<h2 class="section serif">閾值警報僅適用於已知的未知</h2>
+<p>當你能夠列舉出故障模式並針對每一種撰寫檢查機制時，閾值警報效果最好。在較小型、自成一體的系統（也就是單體）中，維運團隊可以針對他們預期在正式環境中看到的每一種確切狀態撰寫特定的監控檢查，而且大體而言這樣做是可行的。但話說清楚：閾值警報最適合用在你對「異常」的樣貌已經有相當清晰且全面的心智模型時。換句話說，它們非常適合用於已知的未知。</p>
+<p>「已知的未知」是指你意識到其存在，但沒有具體資訊的事物。換句話說，你知道你的系統存在特定風險，但不知道會發生哪一種，也不知道其確切的嚴重程度。已知的未知是我們所認知到的知識缺口，而且我們（通常）已有應對計畫。</p>
+<p>採用閾值警報時，這些是你已知存在、能夠命名，也能夠測量的故障模式，即便你不知道它們此刻是否正在發生。舉例來說，已知的未知故障模式包括：</p>
+<p>• 磁碟已滿 95%。 •</p>
+<p>• 佇列深度已超過 70%。 •</p>
+<p>• TLS（傳輸層安全）憑證將於 10 天後到期。•</p>
+<p>• 錯誤率在五分鐘內超過 10%。•</p>
+<p>你可以撰寫一項檢查來測量系統狀態、定義一個閾值，並在超過閾值時執行某個動作（例如傳送呼叫器通知給工程師），因為這種情況能可靠地預測即將發生的用戶痛點，而且我們知道該如何應對。</p>
+<p>在分散式系統中，故障模式會成倍增加。分散式系統並不會消除已知的未知；它們只會使其成為所有可能發生的故障中的一小部分。隨著系統之間的連結愈加緊密，可能出錯的合理情況數量便不再只是相加，而是變成組合爆炸式的成長。</p>
+<p>當團隊從較小型或自成一體的系統轉向分散式系統時，經常會試圖將直覺法則化：每一次記憶中的中斷都變成一個新的警報，每一張嚇人的圖表都變成一個新的儀表板，而每一次「我們早該知道」的事故檢討都變成另一個定義好的閾值。</p>
+<p>在一段時間內，這種做法感覺起來很嚴謹。但實際上，它會演變成一場你無法獲勝的軍備競賽。試圖預測每一種可能的失敗或系統狀態，會導致數百甚至數千項檢查，這些檢查既脆弱又昂貴，難以維護，而且根植於過去停機事件中累積的內隱知識。這種做法無法長久維持。這些檢查難以維護，相關知識往往也無法傳遞，而且過去的歷史行為並不必然能預測未來的故障。此外，這樣做仍然無法聚焦於用戶實際的體驗上。</p>
+<p>分散式系統中,遭遇未知的未知已成為常態。所謂未知的未知,是指你原本就沒有預料到的失效。這些失效可能是突現行為、詭異的交互作用、連鎖重試、部分性的斷電、只有在特定流量組合下才會出現問題的相依服務逾時,或是一次「無害」的部署導致下游快取陷入清除循環,諸如此類不勝枚舉。這些風險或因素之所以完全出乎意料,是因為它們根本從未進入雷達範圍——往往是一個前所未見、從未被設想過的全新問題。</p>
+<p>你無法針對還想像不到的問題撰寫閾值警報。現代應用程式架構經常將負載分散到多個彼此互異的系統上。它們會將資料拆分、分片、水平分區,並跨地理分佈的</p>
+<p>系統。雖然這些架構決策的目的是為了優化性能、韌性與可擴展性,但也可能讓系統性故障變得幾乎無法檢測或預測。在這裡,未知的未知並非罕見的邊緣案例,它們是你為規模與複雜性所付出的預設代價。</p>
+<p>更糟的是,閾值警報往往以一種令人安心卻具誤導性的方式,把症狀與原因混為一談。在單體系統中,異常數量的執行緒可能意味著麻煩,也可能只是垃圾回收正在發揮作用,或是應用程式第一次載入更新後的函式庫。在分散式系統中,某個元件中的異常執行緒可能是無關且無害的噪音,也可能是 10 分鐘後將衝擊用戶的上游延遲問題的第一條線索。</p>
+<p>在凌晨兩點,當正式環境莫名其妙地故障時,這些區別至關重要。值班工程師被要求的不只是回應警報,還要判斷這個警報是否真實、是否重要,以及該從何處開始排查。閾值原本應該用來降低不確定性,但實際上多數時候,它們只是把不確定性轉移到你的事件應變頻道中。</p>
+<p>閾值警報也可能由自動化觸發。現代系統早已能在無需人工協助的情況下修復許多常見的故障模式:自動擴展、故障轉移、斷路器、負載平衡等等。當你的系統能夠自我修復時,觸發通知並非必要。這不僅不是緊急情況,反而是一種糟糕的干擾。如果你的警報在能自行解決的狀況下把人吵醒,那你並不是在建立可靠性,而是在製造疲憊感。這些問題仍然值得調查,但那只是在正常上班時間完成的低優先事項。</p>
+<p>這裡的界線是:閾值警報是用於已知的未知的工具。對於那些與用戶影響有強烈、可重複、直接相關性,且有明確修復動作的狀況,閾值警報可能適用。但它們並不適合用於檢測未知的未知。沒有任何靜態的檢查清單能涵蓋複雜系統中所有可能出現的突發故障情境。</p>
+<p>在高度可觀測性的系統中,我們已經看到核心分析循環如何讓你快速對異常進行除錯。當你能夠輕鬆對正式環境中的問題進行除錯時,檢測未知的未知的方法,並不是徒勞地試圖為每一種可能的情況都設定警報。相反地,你應該專注於只保留有用的警報,並移除其他所有警報。</p>
+<p>讓我們定義何謂有幫助的警報標準。Google 的網站可靠性工程1（SRE）認為，好的警報必須反映緊急的用戶影響，必須是可操作的，必須是新穎的，且必須需要進行調查，而不是機械式的動作。2</p>
+<p class="fn">1 Niall Richard Murphy、Betsy Beyer、Chris Jones 與 Jennifer Petoff 合著。Site Reliability Engineering（O'Reilly, 2016）。</p>
+<p class="fn">2 Rob Ewaschuk 與 Betsy Beyer。〈Monitoring Distributed Systems〉，收錄於 Site Reliability Engineering。（O’Reilly, 2016, 63–64）。</p>
+<p>我們可以透過設定一個雙重標準，進一步定義何謂「有幫助」的警報。首先，該警報必須是可靠的指標，能反映服務的用戶體驗（UX）正處於劣化狀態。其次，該警報必須是可解決的，也就是說必須存在一套系統性的（但並非純粹靠自動化完成的）方法，能讓值班人員針對此警報進行除錯並採取行動，而不需要靠猜測來判斷正確的應對方式。如果這兩個條件無法同時成立，那麼你所設定的任何警報都已經失去其應有的作用。</p>
+<h2 class="section serif">以用戶體驗為北極星</h2>
+<p>再次引用 SRE 書籍中的說法，以「潛在原因」為依據的警報，與實際問題之間的相關性往往不高；相對地，以「用戶痛點的徵狀」為依據的警報，則能更好地讓你了解系統對用戶造成的實際影響，以及客戶所體驗到的系統狀態。</p>
+<p>那麼，該如何專注於設定能偵測到影響用戶體驗之故障的警報呢？在這一點上，有必要跳脫傳統的監控方法。傳統以指標為基礎的監控方法，仰賴使用靜態閾值來定義系統的最佳狀態。然而，現代系統的效能——即使在基礎架構層級——在不同的工作負載下，往往會動態地改變其樣貌。靜態閾值根本無法勝任監控用戶體驗影響這項任務。</p>
+<p>建立傳統的警報機制來監控用戶體驗，意味著系統工程師必須選定一些武斷的常數，用以預測何時該體驗會變差。舉例來說，這些警報可能被設定為在「有10 位用戶經歷了緩慢的頁面載入時間」或「95 百分位的請求持續超過某個毫秒數」時觸發。在以閾值為基礎的做法中，系統工程師必須自行判斷究竟哪些精確的靜態指標，才代表發生了不可接受的問題。</p>
+<p>然而，隨著位於不同時區的不同用戶以不同方式與你的服務互動，系統效能在一天當中會有顯著的變化。在流量較低的時段，當你可能只有數百個並行連線時，10 位用戶經歷緩慢的頁面載入時間可能是一個重要的指標。但在尖峰負載時段，當你可能有數萬個並行連線正在運作時，這個指標的重要性便會大幅降低。</p>
+<p>請記住，在分散式系統中，故障是無可避免的。微小且短暫的故障始終在發生，只是你未必會注意到。常見的例子包括：一次失敗的請求，之後在重試時成功了；一個一開始失敗的關鍵處理程序，其完成時間僅是延遲到被路由至新配置的主機後才完成；或是某個服務變得無回應，直到其請求被路由至備援服務為止。這類短暫故障所引入的額外延遲，可能會混雜</p>
+<p>在尖峰流量期間屬於正常操作範圍，但在低流量期間，P95 回應時間會對個別資料點更加敏感。</p>
+<p>同樣地，這些範例也說明了以時間為基礎的指標的粗糙性。假設 P95 回應時間是以五分鐘為間隔進行測量。每五分鐘，過去五分鐘區間的效能就會回報一個數值，若超過靜態閾值，就會觸發警報。若該數值超過閾值，整個五分鐘區間都會被視為異常（反之，未超過閾值的五分鐘區間則被視為正常）。針對這類指標發出警報，會導致偽陽性和偽陰性的比率都偏高。而且其粒度也不足以精準診斷問題發生的確切時間與位置。</p>
+<p>在動態環境中，靜態閾值過於僵化和粗糙，無法可靠地指出用戶體驗的下降。它們缺乏脈絡。可靠的警報需要更精細的粒度與可靠性，而這正是服務水準目標（SLO）能發揮作用之處。</p>
+<h2 class="section serif">使用服務水準目標達成可靠的警報</h2>
+<p>SLO 是用來衡量服務健康狀況的內部目標。由 Google SRE 一書推廣普及，SLO 是在服務提供者與其客戶之間建立外部服務水準協議（SLA）的關鍵環節。這些內部衡量標準通常比對外的協議或可用性承諾更為嚴格。透過這種額外的嚴格性，SLO 能夠提供一個安全網，協助團隊在外部用戶體驗降至不可接受的水準之前，及早發現並修復問題。</p>
+<p>關於這個主題更深入的了解，我們推薦 Alex Hidalgo 所著的《Implementing Service Level Objectives》（O'Reilly,2020）。</p>
+<div class="callout"><img src="images/ch11_p215_x37.png" alt="" /><p>關於使用 SLO 來確保服務可靠性，已經有許多論述，這並非可觀測性領域所獨有的概念。然而，若要採用基於 SLO 的方法來監控服務健康狀況，就必須在應用程式中內建可觀測性。在沒有可觀測性的系統中，SLO 有時也可以被實作出來。但這麼做可能會帶來嚴重的意外後果。</p></div>
+<p>SLO 根據關鍵的終端用戶使用旅程（而非系統指標）來量化一個雙方同意的服務可用性目標。該目標是透過服務水準指標（SLI）來衡量的，SLI 會將系統狀態分類為良好或不良。SLI 有兩種類型：基於時間的量測（例如「每五分鐘視窗內的第 99 百分位延遲小於 300 毫秒」）與基於事件的量測（例如「在給定的滾動時間視窗內，耗時少於 300 毫秒的事件比例」）。</p>
+<p>兩者都試圖表達對終端用戶的影響，但差別在於是否已依時間桶對用戶流入流量的資料進行預先聚合。我們建議使用基於事件的度量方式而非基於時間的度量方式來設定 SLI，因為基於事件的度量能提供更可靠、更細緻的方式來量化服務狀態。我們會在下一章討論其原因。</p>
+<p>讓我們來看一個定義基於事件的 SLI 的範例。你可以將良好的客戶體驗定義為「用戶應該能夠成功載入你的首頁，並快速看到結果」這樣的狀態。用 SLI 來表達這一點，意味著要對事件進行條件篩選，然後判斷它們是否符合你的條件。在這個範例中，你的 SLI 會做以下事情：</p>
+<p>1. 尋找任何請求路徑為 /home 的事件。</p>
+<p>2. 篩選出事件持續時間小於 100 毫秒的合格事件。</p>
+<p>3. 如果事件持續時間小於 100 毫秒且成功送達，則視為 OK。</p>
+<p>4. 如果事件持續時間至少為 100 毫秒，即使回傳成功碼，也將該事件視為錯誤。</p>
+<p>任何被視為錯誤的事件都會消耗你 SLO 中允許的一部分錯誤預算。我們會在下一章仔細探討主動管理 SLO 錯誤預算與觸發警報的模式。目前，我們可以總結說，當錯誤累積到一定程度時，你的系統就能提醒你可能已違反 SLO。</p>
+<p>SLO 縮小了你警報的範圍，使其只考慮會影響用戶使用你服務體驗的症狀。如果某個潛在狀況正在影響「用戶載入首頁並快速看到結果」，就應該觸發警報，因為需要有人去調查原因。然而，這與服務可能如何劣化的原因並無關聯。我們只是知道有些地方出了問題。</p>
+<p>相較之下，傳統監控依賴的是一種基於潛在原因的方法：偵測到某個先前已知的原因（例如異常數量的執行緒），這代表用戶可能會經歷不良的症狀（頁面載入緩慢）。這種方法將情境的「是什麼」與「為什麼」融合在一起，試圖幫助指出應該從哪裡開始調查。但正如你所見，你的服務遠不只是已知的上線、離線、甚至是緩慢這幾種狀態。新興的故障模式可能早在粗略的合成探測告訴你之前，就已經對你的用戶造成影響。將「是什麼」與「為什麼」解耦，是撰寫具有最大訊號、最小雜訊的優良監控時最重要的區別之一。</p>
+<p>警報要有幫助，第二項標準是它必須是可行動的。系統層級的、基於潛在原因的「CPU 過高」警報，並不能告訴你用戶是否受到影響、你是否應該採取行動。相較之下，基於 SLO 的警報則是</p>
+<p>基於症狀：它們告訴你有些地方出錯了。這些警報是可執行的，因為現在需要負責人員判斷用戶為何受到影響並採取緩解措施。然而，如果你無法充分地為系統除錯，解決問題將會相當困難。這正是轉向可觀測性變得至關重要的地方：在正式環境中除錯必須是安全且自然的。</p>
+<p>在以 SLO 為基礎的世界裡，你需要高可觀測性的工具，因為它讓你能從第一原理進行除錯。有了豐富的遙測資料，你可以從廣泛的範圍開始，再逐步過濾以縮小搜尋範圍。這種做法意味著，無論失效的情況多麼新奇或突發，你都能做出回應以找出問題的根源。你可以隨機應變、調整解決方案，找出系統中的任何問題。</p>
+<p>能提供豐富且有意義遙測資料的檢測，正是這種做法的基礎。能夠快速分析這些遙測資料以驗證或推翻假設，正是讓你有信心移除吵雜、無助益警報的關鍵。當搭配可觀測性使用以 SLO 為基礎的警報時，就能將警報中的「什麼」與「為什麼」解耦。</p>
+<p>當大多數警報都不具可操作性時，很快就會導致警報疲勞。為了消除這個問題，是時候刪除所有不具可操作性的警報了。如果這看似不可行，這通常意味著你也需要一場文化上的轉變來支持這項改變。</p>
+<p>為了說明如何在採用 SLO 進行監控時實現文化變革，我們來看一個真實的案例，這是 Mat Vine 在 ANZ 銀行（一家總部位於澳洲的跨國銀行暨金融服務公司）親身經歷的第一手記述。</p>
+<h2 class="section serif">案例研究：改變組織文化以採用基於 SLO 的警報</h2>
+<h3 class="subsection">本節由 ANZ Bank 雲端、品質與可靠性主管</h3>
+<h3 class="subsection">Mat Vine 撰稿</h3>
+<p>當我剛加入一家老牌銀行時，我被指派在企業的轉型部門內建立 SRE 實務。上班第一天，我就參加了新團隊第一次的「重大事件」演練。隔天，我的主管便要求我提出上線就緒的時程估計。我認為 12 到 18 個月才是實際可行的時間範圍，他卻提出希望在 12 週內完成試營運上線的目標。對許多從事維運工作的人來說，這種期望上的即時、高壓轉變，足以讓人陷入恐慌。最終，你相信我們的可靠性團隊真的能在 12 週內為上線亮起綠燈嗎？為什麼我當初的估計會如此偏離？正是透過高品質的遙測、定義 SLO 並設定錯誤預算，才讓我們得以有信心地出貨。</p>
+<p>率先投資遙測是有其意義的，因為這能為真正持久見效的文化與組織層面工作，帶來加快推進所需的槓桿。所幸，身為 Google Cloud 的主要合作夥伴，我們有幸擁有已經對此有所理解的領導層，</p>
+<p>透過 Google 的 Customer Reliability Engineering 計畫以及由 Google 員工撰寫、O'Reilly 出版的 SRE 書，我們學到了 SLO 與錯誤預算的概念。我們擁有一套現代化的雲端原生架構，主要為自建，並且很早就押注在OpenTelemetry 上——這讓我們獲得了一定程度的遙測標準化，最終也大量仰賴這一點。</p>
+<p>表面上看來，這是個奢侈的綠地起跑點，理當讓我比原先估計的 12 到 18 個月更為樂觀才對。然而實際情況是，我們正處於快速開發、逼近試點上線的階段。基礎架構與軟體都在快速建置與變動中，產品本身也仍在設計、測試與重新實作。這些條件出乎意料地不利於啟動一場 SLO 革命。那麼，為什麼我們不乾脆退回到行之有年的閾值警報呢？我們認為那是一條單行道的陷阱，因為任意設定的閾值往往會逐漸僵化。最容易設定的目標就是「維持現有的性能表現」，但這會形成一種回饋循環，讓你是針對統計上的偏差發出警報，而不是針對客戶所受到的影響。</p>
+<p>相反地，我們發現有一小組核心的用戶旅程涵蓋了我們絕大多數的關鍵資產與依賴項目。只要專注在這些旅程上，我們就能在不被雜訊淹沒、也不誘使團隊成員不斷增設更多閾值的情況下，達到高度的系統涵蓋率。這讓我們能夠把警報的基礎架構當作一種商品化的東西來處理，並將有限的時間投入到更高價值的工作上：就系統應有的表現方式建立共識，而不只是針對系統當下的表現發出警報。</p>
+<p>在已建立成熟 SLO 採用機制的組織中，你會在每個新元件或系統的設計階段就開始導入服務水準目標（SLO）。但在一個快速發展的新系統中，若沒有立即的營運壓力或客戶滿意度需要權衡，服務水準目標會顯得過於抽象。我估計的12 到 18 個月，是根據當時一年的前置時間所推算的，而在這段期間內並沒有設定任何服務水準目標。我認為服務水準目標若要發揮真正的價值，必須具備兩個基本條件：</p>
+<p>系統面臨真實世界的需求。</p>
+<p>這裡指的不是理論上的流量，也不是負載測試，而是真正依賴你所建構之系統的實際用戶。</p>
+<p>規模——真正的規模。</p>
+<p>服務水準目標（SLO）需要存在於組織中任何有交付或營運壓力的地方，而不應僅侷限於單一團隊或特定專業領域。SLO 需要被理解為團隊營運模式的一部分。</p>
+<p>那麼，我們該如何取代這些呢？</p>
+<p>在我們的情境中，逼近的截止日期迫使我們釐清方向。我們不再爭論哪些事項可能重要，而是開始確認在發布當天真正重要的事項。這意味著要從眾多問題中，縮小到僅剩不到五個跨越多個問題的使用者流程</p>
+<p>對第一天客戶體驗真正重要的領域。之後還有時間去充實更全面的服務水準目標（SLO）。</p>
+<p>我們在 OTel 上的早期投入，形式是一套內部套件，擴充了 OTel SDK 並加入了我們自己特定領域的語意慣例。由於我們大多數服務早已以可預測的架構發送遙測資料，我們得以避免花費數週時間撰寫正規表達式，並在異質日誌之間對映資料欄位。這段時間——若我們處於較不標準化的環境中，原本會非常龐大——被重新投入到更有價值的活動上：對映用戶旅程、釐清哪些指標適合作為服務水準指標（SLI），以及在開發、維運與產品利益相關者之間建立共識。儘管我們沒有真實世界的需求，但我們知道可以透過負載測試取得可靠的估計值，並在產品上線後即時調整。</p>
+<p>服務水準目標（SLO）和任何高可觀測性的實作一樣，都是一種投資。如果你的團隊只有在事件應變時才會接觸可觀測性資料，那麼你要嘛在讓資料變得有用這方面投資不足，要嘛就是為此付出了過高的代價。這對 SLO 同樣適用；它們需要組織條件才能蓬勃發展。團隊必須被要求做出在風險與速度之間取得平衡的決策。如果這種壓力不存在——在早期開發階段這種情況很常見——SLO就不太可能取得足夠的動能，對你建構或維運系統的方式造成明顯影響。</p>
+<p>我對於套用標準的 SLO 技術推廣方式抱持懷疑，也就是挑選一個表現優異的團隊，讓他們使用該工具，然後期望這次試用能告訴你足夠的資訊，讓你在整個組織內擴大規模。問題在於，表現優異的團隊幾乎從來不需要 SLO。這些團隊會自然地自我排序優先順序並自我治理。他們透過自己內部的流程——不論是內部技術債政策、瑣事指標，還是穩固的利益相關者關係——在風險與速度之間取得平衡。這種表現通常伴隨著早已建立起的信任。對這些團隊而言，SLO並不能發揮太大的作用。</p>
+<p>如果你是從零開始，應該改為找出你組織中問題最多或最重要的領域。鎖定支援你服務中最關鍵系統的團隊、承受最高維運壓力的團隊，或是與產品和業務利益相關者關係最不具生產力、最缺乏信任的團隊。這些正是 SLO 能夠改變行為與決策方式的團隊。</p>
+<p>當你鎖定這些團隊時，務必將心力直接聚焦在真正重要的事情上：建立明確的目標、釐清你所選擇的指標，並在所有利益相關者之間就這些選擇建立真正的共識。將遙測資料整理成正確的形態最終或許有其必要，但這幾乎從來不是最應該優先做的事。如果你花費大量時間在這上面，你很可能還沒有足以展開行動的基礎。</p>
+<p>根據我的經驗，高品質的遙測需要作為一項獨立能力來投資。良好的遙測——標準化、語意豐富且高基數——能為團隊帶來立即的效益。它能幫助團隊了解自身系統，並在發生問題時緩解運維壓力。對大多數組織而言，即使變革僅止於此，投資於大致標準化的遙測解決方案，也很可能會有所回報。然而，一旦到位，你就擁有了一個骨幹，能讓工程團隊專注於重要的文化與流程建構，以便讓 SLO 有效地擴展到整個組織。</p>
+<p>現實情況是，我最初 12 到 18 個月的估計，既對也不對。要讓 SLO 真正成為我們軟體開發生命週期（SDLC）的一部分，將其納入產品優先順序的討論，並最終將數百個用戶旅程與業務流程對應到明確定義的目標，確實花了 18 個月的時間。所幸，在 12 週內就能建立足夠穩固的基礎，讓我們對產品的 beta版上線有信心。我們在短短幾個月內就實施了相對完整的基於 SLO 的監控系統，這是因為我們早期在 OTel 上的投資與所引入的標準化，讓我們得以專注於架構、業務對齊與運維實務。</p>
+<p>這個差異在推廣到整個組織時很重要。每個參與軟體交付生命週期的人，第一眼看到錯誤預算的概念時都會愛上它。但設定目標、就目標達成共識，並就一個運作中的系統應該是什麼樣子、應該多常正常運作建立共識，這項工作既困難又必要。每次你被拉去撰寫正規表示式（regex），或在異質資料格式之間拼湊 session ID，你就在較困難、更有價值的工作上損失了時間。透過從一開始就採用統一的可觀測性，並基於這些可觀測性資料來建立 SLO，我們降低了成功實施 SLO 所需克服的阻力。</p>
+<h2 class="section serif">運用生成式 AI 加速 SLO 導入</h2>
+<p>Mat Vine 分享的在受監管企業中導入 SLO 的經歷，凸顯了 SLO 導入過程中的許多挑戰與益處。對許多團隊而言，尋求組織上的一致性可能特別具有挑戰性。這往往正是為什麼在剛開始時，起草 SLI 與 SLO 看似出乎意料地困難。與其說團隊在撰寫良好的查詢上遇到困難，不如說 SLO 迫使你必須取得組織上的清晰共識。</p>
+<p>你必須決定哪些用戶旅程最重要、這些旅程的「成功」代表什麼意義，以及業務能容忍多少不完美。這個決策過程需要將產品意圖轉化為可衡量的準則、讓可能有著相互競爭優先順序的利益相關者達成一致，然後選定一個閾值，在不斷產生雜訊與悄悄錯過服務品質下降之間取得平衡。早期的 SLO 工作經常陷入模糊不清的困境：每個人都同意</p>
+<p>可靠性很重要，但沒有人想成為那個決定數字、承擔取捨責任的人。</p>
+<p>生成式 AI 可以協助加速這個早期階段。LLM 能夠幫忙解決「白紙一張」的問題：它們可以快速把模糊的意圖轉化為具體的草稿，讓真正的工作——審查、討論、校準與迭代——得以展開。人類實際的理解、擁有權與判斷力是無可取代的。</p>
+<p>在我們作為 SRE 的實務經驗中，我們發現 LLM 在應用程式程式碼撰寫之外的場景同樣有用。畢竟基礎設施可以以程式碼形式撰寫，像是已儲存的查詢、儀表板與 SLO 等可觀測性基本元件也是如此。這些成品編碼了關於什麼重要、該如何衡量的假設。有了這樣的背景，LLM 特別擅長把模糊的需求人類語言，轉化成你可以進一步調整的草稿建議。</p>
+<p>傳統上，要提出合理的 SLO 目標並解釋其中的取捨，得聘請一位經驗豐富的SRE（無論是員工還是顧問）。而在許多情況下，只要給予 LLM 關於服務與業務期望的正確背景資訊，它就能提供一份可用的初稿。它無法取代專業知識，但可以縮短產出良好工作草稿所需的時間。</p>
+<p>即使不經過後訓練、客製化提示或檢索增強生成（RAG），使用開放權重模型仍能得到出乎意料的良好結果。舉例來說，當被問及應該為一個每月處理 100萬美元交易額的公有雲結帳流程設定什麼樣的可靠性目標時，模型可能一開始會建議一個相當激進的目標。當被質疑成本與報酬遞減的問題時，它可能會修改目標，並以商業語言提供一個說明取捨的理由：</p>
+<pre class="code">Prompt = What reliability percentage goal should I target <span class="tok-keyword">for</span> an ecommerce
+        checkout workflow running on a <span class="tok-keyword">public</span> cloud, where the service
+        processes $<span class="tok-number">1</span> million <span class="tok-keyword">in</span> transactions per month? Answer succinctly
+        <span class="tok-keyword">with</span> just a number <span class="tok-keyword">and</span> a rationale.
+gpt-oss 20b = <span class="tok-number">99.999</span> % availability – the “five-nines” target keeps annual
+downtime under <span class="tok-number">5</span>  minutes, minimizing revenue loss <span class="tok-keyword">and</span> meeting high-expectation
+e-commerce uptime standards.
+Prompt = Are you sure? That seems really costly to achieve. Trying to prevent the
+last <span class="tok-number">45</span> minutes of lost revenue seems <span class="tok-keyword">not</span> worth it.
+gpt-oss 20b = **Target: <span class="tok-number">99.95</span> % availability** – <span class="tok-keyword">this</span> limits annual downtime to
+~<span class="tok-number">42</span> minutes, which <span class="tok-keyword">for</span> a $<span class="tok-number">1</span> M / month (≈$<span class="tok-number">12</span> M / yr) revenue stream translates to
+&lt;$<span class="tok-number">1</span> k lost revenue per year. <span class="tok-number">99.95</span>% <span class="tok-keyword">is</span> attainable <span class="tok-keyword">with</span> a simple multi-AZ,
+load-balanced architecture <span class="tok-keyword">and</span> avoids the high cost of five-nines <span class="tok-keyword">while</span> still
+keeping customer experience strong.</pre>
+<p>另一個模型可能會選擇不同的數字，但仍會提供合理的解釋。舉例來說，Claude 也給出了類似的回應：</p>
+<pre class="code">Prompt = What reliability percentage goal should I target <span class="tok-keyword">for</span> an ecommerce
+        checkout workflow running on a <span class="tok-keyword">public</span> cloud, where the service
+        processes $<span class="tok-number">1</span> million <span class="tok-keyword">in</span> transactions per month? Answer succinctly
+        <span class="tok-keyword">with</span> just a number <span class="tok-keyword">and</span> a rationale.
+Claude Opus <span class="tok-number">4.6</span> = **<span class="tok-number">99.99</span>%** (four nines)
+A checkout workflow <span class="tok-keyword">is</span> directly revenue-bearing, so every minute of downtime has
+a quantifiable cost: at $1M/month, that’s roughly $<span class="tok-number">23</span> per minute of lost
+transactions. Three nines (<span class="tok-number">99.9</span>%) gives you ~<span class="tok-number">43</span> minutes of downtime per month,
+costing ~$<span class="tok-number">1</span>,<span class="tok-number">000</span> <span class="tok-keyword">in</span> lost revenue plus customer trust erosion <span class="tok-keyword">and</span> cart abandonment
+that compounds beyond the outage window. Five nines (<span class="tok-number">99.999</span>%) <span class="tok-keyword">is</span> largely
+unachievable on <span class="tok-keyword">public</span> cloud without multi-region active-active, which <span class="tok-keyword">is</span>
+expensive to build <span class="tok-keyword">and</span> operate correctly <span class="tok-keyword">for</span> stateful checkout flows.
+Four nines (~<span class="tok-number">4.3</span> minutes/month) hits the pragmatic sweet spot: its achievable on
+a single cloud region <span class="tok-keyword">with</span> redundant components, the ~$<span class="tok-number">100</span>/month <span class="tok-keyword">in</span> theoretical
+lost-revenue exposure <span class="tok-keyword">is</span> tolerable, <span class="tok-keyword">and</span> the engineering investment (health
+checks, retries, circuit breakers, graceful degradation) <span class="tok-keyword">is</span> proportionate to the
+business value. It also aligns <span class="tok-keyword">with</span> what major cloud providers commit to <span class="tok-keyword">for</span>
+their own managed services, so you’re <span class="tok-keyword">not</span> trying to out-SLO your dependencies.</pre>
+<p>以資深 SRE 的角度來看，這些數值與解釋（在經過一番挑戰之後）大致符合我們對產品負責人提出的問題——針對特定交易量該追求較高或較低的可靠性目標時所給的投資報酬率（ROI）建議。你可以繼續追問「為什麼不是 99.9%？」或「為什麼不是 99.999%？」，並得到足以讓你思考的合理答案。即使你不同意這項建議，你現在也有了具體的東西可以評估——而這能加速達成共識。</p>
+<h2 class="section serif">從目標到實作：草擬服務水準指標</h2>
+<p>LLM 對於將「該測量什麼」轉化為具體表達方式也很有幫助。只要提供足夠的遙測資料背景資訊，它們就能協助你運用可觀測性工具，草擬對應 SLO 的 SLI。以事件為基礎的 SLI 通常需要仔細定義的資格條件與成功條件，而模型可以快速草擬這些表達式。但細節很重要，錯誤往往很細微，例如漏掉重要的過濾條件、選錯誤差訊號，或是未能符合你系統的查詢或語法慣例。</p>
+<p>以下範例說明前面的對話該如何延續下去，假設用戶已填入其查詢語言可用的語法與函式：</p>
+<pre class="code">Prompt = Now, you will be generating an expression <span class="tok-keyword">in</span> a domain specific language
+         to define a service level indicator (SLI). The SLI measures the
+         performance <span class="tok-keyword">and</span> reliability of a service per request based on
+         certain criteria, to be used <span class="tok-keyword">for</span> computing a higher-level SLO.
+Here <span class="tok-keyword">is</span> the title describing the goal of the overall SLO:
+&lt;title&gt;
+Checkout succeeds quickly enough
+&lt;/title&gt;
+And here <span class="tok-keyword">is</span> a more detailed description of the overall SLO:
+&lt;description&gt;
+Checkout should succeed within four seconds, <span class="tok-number">99.99</span>% of the time.
+&lt;/description&gt;
+Use $PROVIDER’s field syntax, looking it up <span class="tok-keyword">if</span> necessary <span class="tok-keyword">from</span> the documentation.
+Assume standard OpenTelemetry semantic conventions.
+separate &lt;reasoning&gt; <span class="tok-keyword">and</span> &lt;expression&gt; <span class="tok-keyword">in</span> your results.</pre>
+<p>以此提示搭配 Claude Opus 4.6 為例，並將空白處填入你所選用可觀測性工具中特定於供應商的查詢語言細節，即可產出如下的合理草稿，說明如何衡量SLI／SLO：</p>
+<pre class="code">Claude Opus <span class="tok-number">4.6</span>:
+&lt;reasoning&gt;
+The SLO description <span class="tok-keyword">is</span> "Checkout should succeed within <span class="tok-number">4</span> seconds, <span class="tok-number">99.99</span>% of the
+time." The <span class="tok-number">99.99</span>% target <span class="tok-keyword">and</span> the rolling time period are configured on the SLO
+object itself; the SLI expression only needs to classify each event <span class="tok-keyword">as</span> <span class="tok-keyword">true</span>
+(good), <span class="tok-keyword">false</span> (bad), <span class="tok-keyword">or</span> <span class="tok-keyword">null</span> (<span class="tok-keyword">not</span> applicable).
+There are three components to express:
+<span class="tok-number">1</span>. **Qualifier** (scopes to checkout events only): Events where `http.route`
+   matches the checkout endpoint. Non-matching events <span class="tok-keyword">return</span> <span class="tok-keyword">null</span> <span class="tok-keyword">and</span> are
+   excluded <span class="tok-keyword">from</span> the SLO calculation. Adapt the route string to match your
+   actual instrumentation.
+<span class="tok-number">2</span>. **Success criterion**: The HTTP response status code <span class="tok-keyword">is</span> below <span class="tok-number">400</span> (i.e., no
+   server-side <span class="tok-keyword">or</span> client-error failure). Using the stable OTel semantic
+   convention field `http.response.status_code`. If you’re on older
+   conventions, substitute `http.status_code`.
+<span class="tok-number">3</span>. **Latency criterion**: The span duration <span class="tok-keyword">is</span> at <span class="tok-keyword">or</span> below 4000ms. `duration_ms`
+   <span class="tok-keyword">is</span> Honeycomb’s standard span duration field.
+The `IF()` wrapper ensures non-checkout events <span class="tok-keyword">return</span> <span class="tok-keyword">null</span>. The `AND()` inside
+requires both success <span class="tok-keyword">and</span> latency criteria to be met <span class="tok-keyword">for</span> the event to count <span class="tok-keyword">as</span>
+<span class="tok-string">"good."</span>
+Configure the SLO <span class="tok-keyword">with</span> `target_percentage: <span class="tok-number">99.9</span>` <span class="tok-keyword">and</span> an appropriate `time_period`
+(e.g., <span class="tok-number">30</span> days). Adjust `<span class="tok-string">"/api/checkout"</span>` to match your actual route, <span class="tok-keyword">and</span> <span class="tok-keyword">if</span>
+your checkout <span class="tok-keyword">is</span> a multi-span workflow rather than a single HTTP handler, scope
+the qualifier to the root span of the checkout trace instead (e.g., using
+`CONTAINS($name, <span class="tok-string">"checkout"</span>)` combined <span class="tok-keyword">with</span> `NOT(EXISTS($trace.parent_id))`).
+&lt;/reasoning&gt;
+&lt;expression&gt;
+IF(
+  EQUALS($http.route, <span class="tok-string">"/api/checkout"</span>),
+  AND(
+    LT($http.response.status_code, <span class="tok-number">400</span>),
+    LTE($duration_ms, <span class="tok-number">4000</span>)
+  )
+)
+&lt;/expression&gt;</pre>
+<p>此時，像 gpt‑oss‑20b 這樣在 Ollama 之類的工具中執行的開放權重模型會開始產生較差的結果，因為它未必是針對你的工具鏈訓練出來的，也無法直接搜尋文件並將其納入上下文。這種情況下，你需要貼上文件內容或底層的語言文法。令人意外的是，兩個模型在初次回應中都遺漏了NOT(EXISTS($trace.parent_id)) 這項判斷條件，或是其他能夠僅篩選伺服器跨度（而非內部跨度）的過濾條件——就該工具的文法而言，這正是成功呈現SLO 所需的條件。不過 Opus 確實有將此作為選擇性的改進建議提出來。</p>
+<p>如同我們先前多次提到的，生成式 AI 領域發展迅速，要在教科書中對 AI 提出明確建議是相當冒險的事。然而，在本書出版之時，我們發現以思考模式運作的高能力託管模型，在這類結構化撰寫任務上的成功率，高於本地端模型，不過本地端模型在迭代與探索方面仍然有其用處。我們確信這些領域的表現只會持續進步，正如 Claude 4.0 與 4.6 模型之間的差異所展現的一樣。</p>
+<p>曾幾何時，你需要使用 Google 的 SLO 工作坊資料，或是讀完前面提到的Hidalgo 所寫的整本 SLO 專書，才能學會怎麼做這件事。現在，藉由適當提示詞搭配 LLM，你就能達到九成堪用的水準，再從那裡開始迭代。要協助數百個團隊制定 SLO 並維持其更新，是相當繁瑣的工作。與其讓自己成為專業知識的瓶頸，不如把最佳實務寫下來並嵌入提示詞中，這樣更能發揮我們自身的槓桿效益。</p>
+<p>說到底，與其讓 SLO 依然是少數具備 SRE 能力團隊的專屬工具，不如讓更多人使用不完美的 SLO。而且，如果你的可觀測性工具允許你對 SLO 進行追溯性編輯，那麼犯錯或疏漏所造成的後果就相對輕微。一旦你取得了哪些做法有效、哪些無效的實際回饋，要迭代並調整你的 SLO 就會容易得多。</p>
+<p>正確的起步營運模式，是把 LLM 當作草稿產生器，而非權威來源。要對照真實的遙測資料驗證其輸出結果，在類正式環境的資料上執行它們，並運用你的專業知識來審查它們，就像你審查一個 pull request 一樣。</p>
+<h2 class="section serif">在你的提示詞中訂立最佳實踐</h2>
+<p>如同我們先前在使用 AI 時提供的準則（見第 128 頁的〈Instrumentation with Agents〉），臨時起意的提示（prompting）可能是一種有風險的做法。建議的做法是將你的標準納入版本控制並重複使用。</p>
+<p>讓我們透過一個範例來說明，也就是精煉先前對話中的 SLI，讓它更能反映我們關注的關鍵用戶旅程，並排除自動化健康檢查：</p>
+<pre class="code">Prompt = Please generate a revised service level indicator specification <span class="tok-keyword">in</span>
+         $PROVIDER format that excludes user agents starting <span class="tok-keyword">with</span> `kube-probe`,
+         <span class="tok-keyword">and</span> also filters specifically <span class="tok-keyword">for</span> POST requests to the `/checkout` HTTP
+         route.</pre>
+<p>我們會繼續展示 Claude 的回應，不過這也適用於 gpt‑oss 或其他各種模型：</p>
+<pre class="code">Claude Opus <span class="tok-number">4.6</span>:
+&lt;reasoning&gt;
+Three changes <span class="tok-keyword">from</span> the previous expression:
+<span class="tok-number">1</span>. **HTTP method qualifier**: The OTel stable semantic convention <span class="tok-keyword">for</span> request
+   method <span class="tok-keyword">is</span> `http.request.method`. We add `EQUALS($http.request.method, <span class="tok-string">"POST"</span>)`
+   to the qualifier.
+<span class="tok-number">2</span>. **Route narrowed**: Changed <span class="tok-keyword">from</span> `/api/checkout` to `/checkout` per your
+   specification.
+<span class="tok-number">3</span>. **Exclude health probes**: Kubernetes liveness/readiness probes should <span class="tok-keyword">not</span>
+   count towards (<span class="tok-keyword">or</span> against) the SLO. Using `NOT(STARTS_WITH(
+   $user_agent.original, <span class="tok-string">"kube-probe"</span>))` ensures these synthetic requests
+   <span class="tok-keyword">return</span> <span class="tok-keyword">null</span> <span class="tok-keyword">and</span> are excluded <span class="tok-keyword">from</span> the budget entirely. The field
+   `user_agent.original` <span class="tok-keyword">is</span> the stable OTel semantic convention <span class="tok-keyword">for</span> the raw
+   User-Agent header.
+All three qualifier conditions are wrapped <span class="tok-keyword">in</span> an `AND()` inside the first
+argument to `IF()`, so any event that fails any of them returns <span class="tok-keyword">null</span>
+(unqualified). Only events matching all three are evaluated against the
+success criteria (status &lt; <span class="tok-number">400</span> <span class="tok-keyword">and</span> duration ≤ 4000ms).
+&lt;/reasoning&gt;
+&lt;expression&gt;
+IF(
+  AND(
+    EQUALS($http.request.method, <span class="tok-string">"POST"</span>),
+    EQUALS($http.route, <span class="tok-string">"/checkout"</span>),
+    NOT(STARTS_WITH($user_agent.original, <span class="tok-string">"kube-probe"</span>))
+  ),
+  AND(
+    LT($http.response.status_code, <span class="tok-number">400</span>),
+    LTE($duration_ms, <span class="tok-number">4000</span>)
+  )
+)
+&lt;/expression&gt;</pre>
+<p>這個結果精準地描述了我們範例使用案例的 SLI 規格。它語法正確，並涵蓋了所有要求的條件（排除 kube‑probe 健康檢查，並強制 HTTP method 為POST、route 為 / checkout）。</p>
+<p>更進一步，一個好的提示應該要說明 SLO 定義中有哪些欄位、好的標題與描述長什麼樣子、基於事件的 SLI 應該如何評估資格與成功與否，以及如何以JSON 產出一個功能等效但更完善的 SLO 定義版本。同時也應要求提供簡潔的回饋，並清楚說明所做的變更。</p>
+<p>舉例來說，你的提示可能會像這樣：</p>
+<pre class="code">Prompt = You are an AI that takes a user’s service level objective (SLO),
+reviewing it based on best practices, <span class="tok-keyword">and</span> provides suggestions <span class="tok-keyword">for</span> improvement.
+The SLO has exactly six things: name, description, time period <span class="tok-keyword">in</span> days, rate, SLI
+alias, <span class="tok-keyword">and</span> SLI expression that gets computed on each event.
+When grading an SLO, you think step by step through each component <span class="tok-keyword">and</span> provide
+concise feedback on how it could align better <span class="tok-keyword">with</span> best practices.
+An SLO aims to measure the reliability of a product, feature, <span class="tok-keyword">or</span> service <span class="tok-keyword">and</span>
+provide a realistic target to manage the system according to.
+Good titles clearly describe the critical user journey <span class="tok-keyword">and</span> its success criteria
+using affirmative language.
+Good descriptions also use affirmative language to elaborate on what success
+means, <span class="tok-keyword">and</span> also elaborate <span class="tok-keyword">with</span> specific eligibility criteria <span class="tok-keyword">for</span> events <span class="tok-keyword">and</span> the
+evaluation criteria to compute <span class="tok-keyword">for</span> them. The evaluation criteria often has a
+numeric threshold, <span class="tok-keyword">or</span> checks a boolean value like success <span class="tok-keyword">or</span> error.
+SLIs typically have an eligibility criterion <span class="tok-keyword">for</span> which events are <span class="tok-keyword">in</span> scope,
+<span class="tok-keyword">and</span> a success criterion representing whether each <span class="tok-keyword">in</span>-scope event delivered a
+satisfactory user experience. If the eligibility criterion <span class="tok-keyword">is</span> <span class="tok-keyword">not</span> met, the
+derived column should evaluate to NULL.Otherwise, it should evaluate to TRUE
+on a good user experience <span class="tok-keyword">and</span> FALSE on a failed user experience.
+Good SLIs typically have <span class="tok-keyword">as</span> simple of an expression <span class="tok-keyword">as</span> possible.
+Finally, when you finish reviewing an SLO, you provide a JSON object of a
+modified SLO definition that aligns better <span class="tok-keyword">with</span> best practices, <span class="tok-keyword">and</span> then an
+explanation of why it’s better.
+When you suggest an improved SLI, make sure it’s always functionally equivalent.</pre>
+<p>一旦你找到最適合你組織背景與工具鏈的提示（prompt），就應該將它們納入版本控制、保持簡單，並在團隊內維持一致。與其要求每個團隊「借用」SRE 專業知識才能起步，不如將這些專業知識嵌入一套可重複使用的工作流程，供各團隊、個人與組織共享。</p>
+<p>分享這些專業知識可以成為關鍵的加速器。與其讓 SLO 只侷限於已經熟悉它的團隊使用，不如協助更多團隊採用尚不完美但持續改進中的 SLO。改善 SLO的關鍵在於確保它們會被檢視與精煉，而當 SLO 定義可以事後編輯時，這件事就變得簡單許多。</p>
+<p>總結來說，結合良好的可觀測性工具與少量的 LLM 輔助，你可以強化 SRE 實務，並更快地推展 SLI 與 SLO。隨著時間推移，你的團隊或許會更深入地掌握主導權，親自精煉這些定義；無論是把模型當作審查者、草擬者，或單純作為一隻幫助釐清取捨的橡皮鴨。</p>
+<h2 class="section serif">結論</h2>
+<p>在本章中，我們介紹了 SLO 作為一種比傳統閾值監控更有效的警報策略。警報疲勞在我們的產業中極為普遍，很大程度上是因為傳統監控仰賴的是容易測量、容易頻繁觸發，卻往往與真實用戶影響關聯性極弱的潛在原因訊號。</p>
+<p>警報疲勞可以透過只建立符合兩項條件的有用警報來解決。第一，它們觸發時必須是可靠的指標，顯示你服務的用戶體驗正處於劣化狀態。第二，它們必須是可採取行動的。任何不符合這些條件的警報，就已經無法發揮其作用，應該予以刪除。</p>
+<p>服務水準目標之所以有幫助，是因為它把「發生了什麼」和「為什麼發生」這兩件事解耦。它針對的是直接對應到用戶體驗的症狀發出警報，而不是針對推測出來的原因。當服務水準目標是以基於事件的服務水準指標來衡量時，警報往往會更可靠、干擾性更低，偽陽性和偽陰性也會更少——尤其是在區分系統性問題與偶發性故障時特別明顯。</p>
+<p>然而，這只是解決方案的一半。服務水準目標的警報能告訴你用戶正在受苦，卻無法告訴你原因為何。要讓基於服務水準目標的警報在營運上發揮效用，正式環境系統必須具備可除錯性，而這正是高度可觀測性變得不可或缺之處。</p>
+<p>採用基於服務水準目標的警報，是一項社會技術層面的挑戰。要移除不可採取行動的警報，需要共同的標準、對新訊號的信心，以及有意識地擺脫長久以來的傳統做法。Mat Vine 的第一手經驗分享，說明了如何取得支持並將這些做法落實到營運當中。</p>
+<p>生成式 AI 能協助加速 SLO 的採用。制訂 SLI 與 SLO 常常是團隊卡關的地方——不是因為機制本身困難，而是因為這項工作需要清晰的思路與共識。若運用得當，LLM 可以縮短產出初稿的時間，讓團隊有一份具體的內容可供審視、對照實際遙測資料進行驗證，並隨時間逐步改善。</p>
+<p>在本書接下來的部分,我們將深入探討技術實作細節,讓這些概念更加具體。下一章開始,我們將先了解 SLO 錯誤預算耗盡的內部運作機制,並探討如何運用它們來建立有效的警報。</p>
+<p>本書前面幾篇涵蓋了任何從事可觀測性工作的人都應具備的基本知識，這一篇要更深入。</p>
+<p>我們將在此掀開內部細節、實作細節與各種權衡取捨。這一篇適合進階實務工作者、正在考慮自行建置可觀測性工具的團隊，以及在相當大規模下運作的團隊。如果你目前還不在這個階段，歡迎先跳過，之後再回來閱讀。</p>
+<p>第 12 章深入探討 SLO 計算實際上是如何運作的。承接第 11 章的內容，本章說明為何包含大量屬性的事件相較於基於指標的做法，能產生更精確、更具可操作性、也更易於除錯的警報。</p>
+<p>第 13 章探討資料儲存要支援真正的調查式可觀測性工作負載需要做到哪些事：功能性需求、性能上的權衡取捨，以及如何針對工程師實際查詢遙測資料的方式進行優化。本章並以 Honeycomb 自行建置的 Retriever 引擎作為具體案例研究。</p>
+<p>第 14 章提供另一種觀點。這一章由 ClickHouse 的工程團隊客座撰寫，說明開源的 ClickHouse 資料庫如何調校以符合可觀測性工作負載的需求。書中呈現了另一組不同的權衡取捨，同樣值得了解。</p>
+<p>第 15 章談的是取樣——如何在不被資料淹沒、也不遺失所需訊號的前提下，處理龐大的遙測量。本章包含程式碼範例，說明常見取樣技術在實務上的運作方式。</p>
+<p>第 16 章是由 Bindplane 的執行長暨創辦人 Mike Kelly 客座撰寫的一章，內容關於遙測流水線——它們是什麼、能解決哪些組織問題，以及該如何使用它們。本章是以 Bindplane 的視角撰寫，這是一套建構在 OTel 標準之上的開源流水線管理工具。</p>
+<p>第 17 章探討如何在各個服務、環境與團隊之間，於大規模場景下管理遙測資料。當你的資料具有多樣性且分散各處時，本體論（ontology）能協助避免語意上的失誤，並讓遙測資料更容易被存取，尤其是在你使用大型語言模型的情況下。本客座章節由 Balto Energy 的共同創辦人暨技術長 Frank Chen 撰寫。</p>
+<p>在第五部分，我們將再次拉遠視角，探討這些技術如何應用於後端系統之外的不同領域。</p>
+
+  <footer class="colophon">
+    <span>《可觀測性工程》第二版 · 第 11 章</span>
+    <span>運用服務水準目標達成可靠性</span>
+  </footer>
+</main>

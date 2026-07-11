@@ -1,0 +1,101 @@
+<title>《可觀測性工程》第二版 — 中文譯本</title>
+<link rel="stylesheet" href="style.css">
+<style>
+  .toc-list { list-style: none; margin: 0 0 1rem; padding: 0; display: flex; flex-direction: column; gap: 0.15rem; }
+  .toc-list a {
+    display: flex; align-items: baseline; gap: 0.9rem;
+    padding: 0.55rem 0.2rem; text-decoration: none; color: var(--ink);
+    border-bottom: 1px solid var(--rule);
+  }
+  .toc-list a:hover { color: var(--accent-ink); }
+  .toc-list .num {
+    font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+    color: var(--ink-faint); font-size: 0.85rem; flex: none; width: 1.6rem;
+  }
+  .preface-link {
+    display: block; margin-bottom: 3rem; padding: 1rem 1.2rem;
+    background: var(--paper-raised); border-radius: 4px; text-decoration: none;
+    color: var(--ink); box-shadow: var(--shadow);
+  }
+  .preface-link:hover { color: var(--accent-ink); }
+</style>
+
+<main>
+  <header class="masthead">
+    <span class="eyebrow">Observability Engineering · Second Edition</span>
+    <h1 class="title serif">可觀測性工程</h1>
+    <div class="rule"></div>
+  </header>
+
+  <p class="lede">邁向生產卓越之路。中文譯本網頁閱讀版，依原書結構逐章收錄。</p>
+
+  <a class="preface-link" href="preface.html">序 →</a>
+
+  <section class="part-block">
+    <h2 class="section serif">第一部分　可觀測性導論</h2>
+    <ul class="toc-list">
+      <li><a href="ch01.html"><span class="num">01</span>什麼是可觀測性？</a></li>
+<li><a href="ch02.html"><span class="num">02</span>程式碼如何落地：在營運環境驗證開發者意圖</a></li>
+<li><a href="ch03.html"><span class="num">03</span>軟體可觀測性的起源</a></li>
+    </ul>
+  </section>
+<section class="part-block">
+    <h2 class="section serif">第二部分　檢測基礎</h2>
+    <ul class="toc-list">
+      <li><a href="ch04.html"><span class="num">04</span>檢測入門</a></li>
+<li><a href="ch05.html"><span class="num">05</span>結構化事件是可觀測性的基本構件</a></li>
+<li><a href="ch06.html"><span class="num">06</span>讓結構化事件盡可能包含大量屬性</a></li>
+<li><a href="ch07.html"><span class="num">07</span>使用 OpenTelemetry 檢測程式碼</a></li>
+    </ul>
+  </section>
+<section class="part-block">
+    <h2 class="section serif">第三部分　分析工作流程</h2>
+    <ul class="toc-list">
+      <li><a href="ch08.html"><span class="num">08</span>開始進行可觀測性分析</a></li>
+<li><a href="ch09.html"><span class="num">09</span>可觀測性驅動開發</a></li>
+<li><a href="ch10.html"><span class="num">10</span>AI 代理在可觀測性中的角色</a></li>
+<li><a href="ch11.html"><span class="num">11</span>運用服務水準目標達成可靠性</a></li>
+    </ul>
+  </section>
+<section class="part-block">
+    <h2 class="section serif">第四部分　可觀測性技術深度剖析</h2>
+    <ul class="toc-list">
+      <li><a href="ch12.html"><span class="num">12</span>對基於 SLO 的警報採取行動與除錯</a></li>
+<li><a href="ch13.html"><span class="num">13</span>使用 Retriever 進行高效的資料儲存</a></li>
+<li><a href="ch14.html"><span class="num">14</span>使用 ClickHouse 進行高效資料儲存</a></li>
+<li><a href="ch15.html"><span class="num">15</span>便宜且足夠準確的取樣</a></li>
+<li><a href="ch16.html"><span class="num">16</span>利用流水線進行遙測管理</a></li>
+<li><a href="ch17.html"><span class="num">17</span>本體論作為人類與人工智慧的共通語言</a></li>
+    </ul>
+  </section>
+<section class="part-block">
+    <h2 class="section serif">第五部分　可觀測性應用案例</h2>
+    <ul class="toc-list">
+      <li><a href="ch18.html"><span class="num">18</span>CI/CD 流水線的可觀測性</a></li>
+<li><a href="ch19.html"><span class="num">19</span>行動裝置與前端的可觀測性</a></li>
+<li><a href="ch20.html"><span class="num">20</span>效能工程與可觀測性</a></li>
+<li><a href="ch21.html"><span class="num">21</span>大型語言模型的可觀測性</a></li>
+<li><a href="ch22.html"><span class="num">22</span>Fin 的現代工程實務案例研究</a></li>
+    </ul>
+  </section>
+<section class="part-block">
+    <h2 class="section serif">第六部分　可觀測性治理</h2>
+    <ul class="toc-list">
+      <li><a href="ch23.html"><span class="num">23</span>組織學習速度現在是你的最大限制：致 CTO 的一封公開信</a></li>
+<li><a href="ch24.html"><span class="num">24</span>軟體交付的系統思考</a></li>
+<li><a href="ch25.html"><span class="num">25</span>可觀測性全景：以系統視角觀察</a></li>
+<li><a href="ch26.html"><span class="num">26</span>可觀測性的商業論證</a></li>
+<li><a href="ch27.html"><span class="num">27</span>診斷你的可觀測性投資</a></li>
+<li><a href="ch28.html"><span class="num">28</span>組織轉型</a></li>
+<li><a href="ch29.html"><span class="num">29</span>自己建立與購買（以及開放原始碼）</a></li>
+<li><a href="ch30.html"><span class="num">30</span>供應商合作的藝術與科學</a></li>
+<li><a href="ch31.html"><span class="num">31</span>可觀測性團隊的檢測工作</a></li>
+<li><a href="ch32.html"><span class="num">32</span>我們何去何從？</a></li>
+    </ul>
+  </section>
+
+  <footer class="colophon">
+    <span>《可觀測性工程》第二版</span>
+    <span>Charity Majors · Liz Fong-Jones · George Miranda · Austin Parker</span>
+  </footer>
+</main>
