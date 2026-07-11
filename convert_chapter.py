@@ -207,7 +207,10 @@ def classify_and_render(pn0, chapter_slug):
         if bold and size >= 9.5 and len(text) < 60 and not re.search(r'[。？！，、]$', text):
             html.append(("h3", protect_quoted(esc(text))))
             continue
-        if size <= 8.5:
+        # genuine footnotes start with a numeric marker ("1 ...", "2 ...");
+        # anything else this small is just a paragraph that got squeezed too
+        # small during manual PDF layout work and should read at normal size.
+        if size <= 8.5 and re.match(r'^\d+[\s\xa0]', text):
             html.append(("fn", esc(text)))
             continue
         html.append(("p", esc(text)))

@@ -184,7 +184,8 @@
 <tbody><tr><td>user_agent.service</td><td>api-gateway, auth-service</td><td>如果你採用分散式架構，讓每個服務都送出一個帶有自己名稱的自訂 User-Agent 標頭</td></tr><tr><td>user_agent.service_version</td><td>v123, 6f6466b0e693470729b669f3745358df29f97e8d</td><td>讓每個服務送出的自訂 User-Agent 標頭中帶有自己的版本</td></tr><tr><td>user_agent.app</td><td>iOS, android</td><td>如果請求來自行動應用程式，請確保其中包含是哪一個應用程式</td></tr><tr><td>user_agent.app_version</td><td>v123, 6f6466b0e693470729b669f3745358df29f97e8d</td><td>如果請求來自行動應用程式，請確保其中包含使用中的是哪一個版本</td></tr></tbody>
 </table>
 </div>
-</figure>
+</figure><pre class="code">user_agent.app
+_version</pre>
 <p>同樣地，你會從標準檢測函式庫自動取得許多這類屬性。但根據你使用的工具不同，也可能無法取得。舉例來說，如果你的組織使用非標準的標頭，你可能需要手動加入其中一些。</p>
 <p>務必檢視自動檢測所取得的屬性有哪些。如果你沒有為上述這些實用情境擷取到遙測資料，別猶豫，動手加上去。不要只滿足於檢測函式庫預設提供的內容！</p>
 <h2 class="section serif">路由資訊</h2>
@@ -354,7 +355,7 @@
 </div>
 </figure><h2 class="section serif">維運資訊</h2>
 <p>針對維運方面考量的遙測，正是讓你的系統得以被人員操作的關鍵。這類資訊在事件應變的情境中相當有幫助。</p>
-<p class="fn">正常運行時間</p>
+<p>正常運行時間</p>
 <p>追蹤服務在處理請求時已經運行多久，有助於視覺化呈現以下幾類錯誤：</p>
 <p>• 重新開機時出現的問題 •</p>
 <p>• 只有在服務運行一段長時間後才會出現的記憶體洩漏 •</p>
